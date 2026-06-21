@@ -1102,6 +1102,101 @@
       display: inline-block;
     }
 
+    /* ===== WBS 트리 뷰 ===== */
+    .wbs-tree { display: flex; flex-direction: column; gap: 6px; }
+    .tree-ctrl-bar {
+      display: flex; gap: 6px; justify-content: flex-end;
+      margin-bottom: 4px;
+    }
+    .tree-ctrl-bar button {
+      font-size: 11.5px; font-weight: 600; cursor: pointer;
+      padding: 4px 11px; border-radius: 5px; border: 1.5px solid var(--line2);
+      background: var(--bg2); color: var(--text-sub); transition: opacity .15s;
+    }
+    .tree-ctrl-bar button:hover { opacity: .75; }
+
+    /* 단계(Phase) */
+    .tree-phase { border-radius: var(--radius-md); overflow: hidden; border: 1.5px solid var(--line2); }
+    .tree-phase-hd {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 16px; cursor: pointer;
+      background: linear-gradient(135deg, #EAF2FB, #DCE8F5);
+      user-select: none; transition: background .15s;
+    }
+    .tree-phase-hd:hover { background: linear-gradient(135deg, #DCE8F5, #CDDDF0); }
+    .tree-chevron {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; flex-shrink: 0;
+      transition: transform .2s ease;
+    }
+    .tree-phase.open > .tree-phase-hd > .tree-chevron { transform: rotate(90deg); }
+    .tree-activity.open > .tree-act-hd > .tree-chevron { transform: rotate(90deg); }
+    .tree-phase-name {
+      font-size: 14px; font-weight: 800; color: var(--navy); flex: 1;
+    }
+    .tree-phase-meta {
+      display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+    }
+    .tree-chip {
+      font-size: 11px; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .tc-total { background: #E0EAF5; color: var(--navy2); }
+    .tc-done  { background: #D1FAE5; color: #065F46; }
+    .tc-delay { background: #FEE2E2; color: var(--red); }
+    .tc-prog  { background: #FEF3C7; color: #92400E; }
+    .tree-prog-bar {
+      width: 80px; height: 6px; background: var(--line);
+      border-radius: 10px; overflow: hidden; flex-shrink: 0;
+    }
+    .tree-prog-fill {
+      height: 100%; border-radius: 10px;
+      background: linear-gradient(90deg, var(--navy2), var(--blue-light));
+    }
+    .tree-prog-pct { font-size: 11.5px; font-weight: 700; color: var(--navy); min-width: 34px; text-align: right; }
+
+    /* 단계 본문 */
+    .tree-phase-body { display: none; background: var(--bg2); padding: 6px 8px; }
+    .tree-phase.open > .tree-phase-body { display: flex; flex-direction: column; gap: 4px; }
+
+    /* 활동(Activity) */
+    .tree-activity { border-radius: 7px; overflow: hidden; border: 1px solid var(--line); }
+    .tree-act-hd {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 13px; cursor: pointer;
+      background: var(--card); user-select: none; transition: background .15s;
+    }
+    .tree-act-hd:hover { background: #F0F6FC; }
+    .tree-act-name { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+    .tree-act-meta { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+
+    /* 활동 본문 */
+    .tree-act-body { display: none; background: var(--card2); }
+    .tree-activity.open > .tree-act-body { display: block; }
+
+    /* Task 행 */
+    .tree-task-row {
+      display: grid;
+      grid-template-columns: 24px 1fr auto auto auto;
+      align-items: center; gap: 8px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+      transition: background .12s;
+    }
+    .tree-task-row:last-child { border-bottom: none; }
+    .tree-task-row:hover { background: #F4F8FC; }
+    .tree-task-row.is-delay { background: #FFF8F8; }
+    .tree-task-row.is-delay:hover { background: #FFF0F0; }
+    .tree-task-row.is-done { opacity: .65; }
+    .tree-task-name { font-size: 13px; color: var(--text); min-width: 0; }
+    .tree-task-name .t-deliver {
+      font-size: 11px; color: var(--text-muted); display: block;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tree-task-dates { font-size: 11.5px; color: var(--text-sub); white-space: nowrap; }
+    .tree-task-bar { display: flex; align-items: center; gap: 5px; width: 110px; flex-shrink: 0; }
+    .tree-task-bar .mini-bar-bg { flex: 1; }
+
     /* ===== 업로드 ===== */
     .upload-zone {
       border: 2px dashed var(--line2);
@@ -1341,74 +1436,86 @@
     #toast.err { background: #991B1B; }
 
     /* ===== 분석 결과 조회 ===== */
-    .hist-search-bar {
+    .hist-toolbar {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
     }
-    .hist-search-bar select {
-      flex: 1;
-      min-width: 220px;
-      padding: 9px 13px;
+    .hist-toolbar-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .hist-toolbar select {
+      width: 160px;
+      padding: 6px 10px;
       border: 1.5px solid var(--line2);
       border-radius: var(--radius-sm);
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--text);
-      background: var(--card2);
+      background: var(--card);
       outline: none;
       cursor: pointer;
+      transition: border-color .15s;
     }
-    .hist-search-bar select:focus { border-color: var(--navy3); }
+    .hist-toolbar select:focus { border-color: var(--navy3); }
     .btn-hist-reset {
-      background: var(--bg2);
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--card);
       color: var(--text-sub);
       border: 1.5px solid var(--line2);
       border-radius: var(--radius-sm);
-      padding: 8px 14px;
-      font-size: 12.5px;
+      padding: 6px 11px;
+      font-size: 12px;
       cursor: pointer;
+      transition: opacity .15s;
     }
-    .btn-hist-clear {
-      background: #FEE2E2;
-      color: var(--red);
-      border: 1.5px solid #FECACA;
-      border-radius: var(--radius-sm);
-      padding: 8px 14px;
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
+    .btn-hist-reset:hover { opacity: .75; }
+    .hist-count-chip {
       margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 3px 10px;
+      white-space: nowrap;
     }
-    .btn-hist-clear:hover { opacity: .8; }
     .hist-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
     }
     .hist-card {
       background: var(--card2);
       border: 1.5px solid var(--line);
       border-radius: var(--radius-md);
-      padding: 18px 20px;
-      transition: box-shadow .18s;
+      padding: 14px 16px;
+      transition: box-shadow .18s, border-color .18s;
     }
-    .hist-card:hover { box-shadow: var(--shadow-md); }
+    .hist-card:hover { box-shadow: var(--shadow-md); border-color: var(--line2); }
+    .hist-card.active-snapshot { border-color: var(--accent); }
     .hist-card-top {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .hist-wbs-date {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--navy);
       letter-spacing: .2px;
     }
     .hist-wbs-date small {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 500;
       color: var(--text-muted);
       margin-left: 4px;
@@ -1417,33 +1524,35 @@
       display: none;
       background: var(--accent);
       color: #fff;
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 700;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 20px;
+      white-space: nowrap;
     }
     .hist-card.active-snapshot .hist-active-badge { display: inline-block; }
     .hist-filename {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-sub);
-      margin-bottom: 14px;
-      word-break: break-all;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .hist-stats {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+      margin-bottom: 10px;
     }
     .hs-item {
       background: var(--bg);
-      border-radius: 6px;
-      padding: 6px 10px;
+      border-radius: 5px;
+      padding: 5px 4px;
       text-align: center;
-      min-width: 60px;
     }
-    .hs-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
-    .hs-value { font-size: 14px; font-weight: 700; color: var(--text); }
+    .hs-label { font-size: 9.5px; color: var(--text-muted); margin-bottom: 2px; white-space: nowrap; }
+    .hs-value { font-size: 13px; font-weight: 700; color: var(--text); }
     .hs-value.c-green { color: var(--green); }
     .hs-value.c-red { color: var(--red); }
     .hs-value.c-accent { color: var(--accent); }
@@ -1452,24 +1561,28 @@
       align-items: center;
       justify-content: space-between;
       border-top: 1px solid var(--line);
-      padding-top: 12px;
-      margin-top: 4px;
-      gap: 8px;
+      padding-top: 10px;
+      margin-top: 2px;
+      gap: 6px;
     }
-    .hist-saved-at { font-size: 11.5px; color: var(--text-muted); }
-    .hist-actions { display: flex; gap: 6px; }
+    .hist-saved-at { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    .hist-actions { display: flex; gap: 5px; flex-wrap: wrap; }
     .hist-actions button {
-      border: none;
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-size: 12px;
+      display: inline-flex; align-items: center; gap: 3px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 5px 9px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       transition: opacity .15s;
+      white-space: nowrap;
     }
-    .hist-actions button:hover { opacity: .8; }
+    .hist-actions button:hover { opacity: .78; }
     .btn-restore { background: var(--navy2); color: #fff; }
-    .btn-link { background: #EFF6FF; color: #1D4ED8; border: 1.5px solid #BFDBFE !important; }
+    .btn-link { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+    .btn-download { background: var(--bg2); color: var(--navy); border-color: var(--line2); }
+    .btn-del { background: #FEE2E2; color: var(--red); border-color: #FECACA; }
     .btn-copy-text {
       display: inline-flex; align-items: center; gap: 5px;
       background: #F0FDF4; color: #166534;
@@ -1478,8 +1591,6 @@
       cursor: pointer; white-space: nowrap; transition: opacity .15s;
     }
     .btn-copy-text:hover { opacity: .8; }
-    .btn-download { background: var(--bg2); color: var(--navy); border: 1.5px solid var(--line2) !important; }
-    .btn-del { background: #FEE2E2; color: var(--red); }
     .hist-empty {
       text-align: center;
       padding: 48px 0;
@@ -1813,23 +1924,11 @@
           </select>
           <input type="text" id="filterKeyword" placeholder="TASK명 검색">
         </div>
-        <div class="table-wrap">
-          <table class="wbs-table">
-            <thead>
-              <tr>
-                <th>단계</th>
-                <th>활동</th>
-                <th>TASK</th>
-                <th>시작</th>
-                <th>종료(계획)</th>
-                <th>완료(실적)</th>
-                <th>상태</th>
-                <th class="gantt-cell">진척률</th>
-              </tr>
-            </thead>
-            <tbody id="allTableBody"></tbody>
-          </table>
+        <div class="tree-ctrl-bar">
+          <button onclick="setTreeAll(true)">전체 펼치기</button>
+          <button onclick="setTreeAll(false)">전체 접기</button>
         </div>
+        <div id="wbsTree" class="wbs-tree"></div>
         <div class="legend">
           <span><i style="background:var(--green)"></i>완료</span>
           <span><i style="background:var(--red)"></i>지연</span>
@@ -1921,18 +2020,16 @@
     <!-- ================= 분석 결과 조회 ================= -->
     <div class="page" id="p-history">
       <div class="section-card">
-        <div class="section-header">
-          <div class="h-left">
-            <div class="section-title">WBS 분석 결과 검색/조회</div>
-          </div>
-          <div class="h-right" id="historyCountLabel" style="font-size:13px;color:var(--text-muted);">저장된 결과 0건</div>
-        </div>
-
-        <div class="hist-search-bar">
+        <div class="hist-toolbar">
+          <span class="hist-toolbar-label">기준일</span>
           <select id="histSearchName" onchange="renderHistoryPage()">
-            <option value="">전체 날짜 보기</option>
+            <option value="">전체</option>
           </select>
-          <button class="btn-hist-reset" onclick="resetHistSearch()">초기화</button>
+          <button class="btn-hist-reset" onclick="resetHistSearch()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            초기화
+          </button>
+          <span class="hist-count-chip" id="historyCountLabel">0건</span>
         </div>
 
         <div id="historyList">
@@ -2126,14 +2223,14 @@
       container.innerHTML = html;
     }
 
-    function renderAllTable() {
+    const CHEVRON_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+
+    function renderWbsTree() {
       const phaseFilter = document.getElementById('filterPhase').value;
       const statusFilter = document.getElementById('filterStatus').value;
       const kw = document.getElementById('filterKeyword').value.trim().toLowerCase();
 
-      const [wMon, wSun] = getWeekRange(TODAY);
-
-      let rows = WBS_DATA.filter(t => {
+      const rows = WBS_DATA.filter(t => {
         if (phaseFilter && t.phase !== phaseFilter) return false;
         const st = taskStatus(t);
         if (statusFilter && st !== statusFilter) return false;
@@ -2141,28 +2238,118 @@
         return true;
       });
 
-      let html = '';
+      if (rows.length === 0) {
+        document.getElementById('wbsTree').innerHTML = `<div class="empty-msg">조건에 맞는 TASK가 없습니다.</div>`;
+        return;
+      }
+
+      // 단계 → 활동 → task 그룹핑 (원래 순서 유지)
+      const phaseMap = new Map();
       rows.forEach(t => {
-        const st = taskStatus(t);
-        const start = parseDate(t.start), end = parseDate(t.end);
-        const actualEnd = parseDate(t.actual_end);
-        const isThisWeek = start && end && rangesOverlap(start, end, wMon, wSun);
-        const rowClass = (st === 'delay' ? 'row-delay' : (st === 'done' ? 'row-done' : '')) + (isThisWeek ? ' row-thisweek' : '');
-        html += `<tr class="${rowClass}">
-      <td>${t.phase || ''}</td>
-      <td>${t.activity || ''}</td>
-      <td>${t.task}</td>
-      <td>${fmt(start)}</td>
-      <td>${fmt(end)}</td>
-      <td>${actualEnd ? fmt(actualEnd) : '-'}</td>
-      <td>${badgeHtml(st)}</td>
-      <td class="gantt-cell">
-        <div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${t.progress}%;"></div></div>
-      </td>
-    </tr>`;
+        const ph = t.phase || '기타';
+        const ac = t.activity || '기타';
+        if (!phaseMap.has(ph)) phaseMap.set(ph, new Map());
+        const actMap = phaseMap.get(ph);
+        if (!actMap.has(ac)) actMap.set(ac, []);
+        actMap.get(ac).push(t);
       });
-      document.getElementById('allTableBody').innerHTML = html || `<tr><td colspan="8" class="empty-msg">조건에 맞는 TASK가 없습니다.</td></tr>`;
+
+      const hasFilter = !!(phaseFilter || statusFilter || kw);
+      let html = '';
+
+      phaseMap.forEach((actMap, phase) => {
+        const phaseTasks = [...actMap.values()].flat();
+        const total = phaseTasks.length;
+        const done  = phaseTasks.filter(t => taskStatus(t) === 'done').length;
+        const delay = phaseTasks.filter(t => taskStatus(t) === 'delay').length;
+        const prog  = phaseTasks.filter(t => taskStatus(t) === 'progress').length;
+        const avgProg = total ? Math.round(phaseTasks.reduce((s, t) => s + t.progress, 0) / total) : 0;
+
+        const isOpen = hasFilter ? 'open' : 'open'; // 기본 단계 펼침
+        html += `
+<div class="tree-phase ${isOpen}" id="ph_${phase.replace(/\s/g,'_')}">
+  <div class="tree-phase-hd" onclick="this.closest('.tree-phase').classList.toggle('open')">
+    <span class="tree-chevron">${CHEVRON_SVG}</span>
+    <span class="tree-phase-name">${phase}</span>
+    <div class="tree-phase-meta">
+      <span class="tree-chip tc-total">${total}건</span>
+      ${done  > 0 ? `<span class="tree-chip tc-done">완료 ${done}</span>` : ''}
+      ${delay > 0 ? `<span class="tree-chip tc-delay">지연 ${delay}</span>` : ''}
+      ${prog  > 0 ? `<span class="tree-chip tc-prog">진행 ${prog}</span>` : ''}
+      <div class="tree-prog-bar"><div class="tree-prog-fill" style="width:${avgProg}%"></div></div>
+      <span class="tree-prog-pct">${avgProg}%</span>
+    </div>
+  </div>
+  <div class="tree-phase-body">`;
+
+        actMap.forEach((tasks, activity) => {
+          const aDone  = tasks.filter(t => taskStatus(t) === 'done').length;
+          const aDelay = tasks.filter(t => taskStatus(t) === 'delay').length;
+          const aProg  = tasks.filter(t => taskStatus(t) === 'progress').length;
+          const aAvg   = tasks.length ? Math.round(tasks.reduce((s,t) => s + t.progress, 0) / tasks.length) : 0;
+          const actOpen = hasFilter ? 'open' : '';
+
+          html += `
+    <div class="tree-activity ${actOpen}">
+      <div class="tree-act-hd" onclick="this.closest('.tree-activity').classList.toggle('open')">
+        <span class="tree-chevron">${CHEVRON_SVG}</span>
+        <span class="tree-act-name">${activity}</span>
+        <div class="tree-act-meta">
+          <span class="tree-chip tc-total" style="font-size:10.5px">${tasks.length}건</span>
+          ${aDelay > 0 ? `<span class="tree-chip tc-delay" style="font-size:10.5px">지연 ${aDelay}</span>` : ''}
+          ${aProg  > 0 ? `<span class="tree-chip tc-prog" style="font-size:10.5px">진행 ${aProg}</span>` : ''}
+          <div class="tree-prog-bar" style="width:60px"><div class="tree-prog-fill" style="width:${aAvg}%"></div></div>
+          <span class="tree-prog-pct">${aAvg}%</span>
+        </div>
+      </div>
+      <div class="tree-act-body">`;
+
+          tasks.forEach(t => {
+            const st = taskStatus(t);
+            const dd = delayDays(t);
+            const start = parseDate(t.start), end = parseDate(t.end);
+            const actualEnd = parseDate(t.actual_end);
+            const dateStr = `${fmt(start)} ~ ${fmt(end)}${actualEnd ? ` (완료 ${fmt(actualEnd)})` : ''}`;
+            const delayBadge = dd > 0 ? `<span class="t-delaydays">${dd}일 지연</span>` : '';
+            const rowCls = st === 'delay' ? 'is-delay' : (st === 'done' ? 'is-done' : '');
+            const barColor = st === 'done' ? 'background:var(--green)' : (st === 'delay' ? 'background:var(--red)' : '');
+            const ap = t.actualProgress;
+            const showDual = ap !== undefined && ap !== t.progress;
+
+            html += `
+        <div class="tree-task-row ${rowCls}">
+          <div>${badgeHtml(st)}</div>
+          <div class="tree-task-name">
+            ${t.task}${delayBadge}
+            ${t.deliverable ? `<span class="t-deliver">산출물: ${t.deliverable}</span>` : ''}
+          </div>
+          <div class="tree-task-dates">${dateStr}</div>
+          <div class="tree-task-bar">
+            <div class="mini-bar-bg" style="flex:1">
+              <div class="mini-bar-fill" style="width:${t.progress}%;${barColor}"></div>
+            </div>
+            <span style="font-size:11px;font-weight:700;color:var(--text-sub);white-space:nowrap">${t.progress}%${showDual ? ` / <span style="color:var(--green)">${ap}%</span>` : ''}</span>
+          </div>
+        </div>`;
+          });
+
+          html += `</div></div>`;
+        });
+
+        html += `</div></div>`;
+      });
+
+      document.getElementById('wbsTree').innerHTML = html;
     }
+
+    function setTreeAll(open) {
+      const tree = document.getElementById('wbsTree');
+      tree.querySelectorAll('.tree-phase, .tree-activity').forEach(el => {
+        open ? el.classList.add('open') : el.classList.remove('open');
+      });
+    }
+
+    function renderAllTable() { renderWbsTree(); }
 
     /* 계획 공정율: 오늘 기준으로 시작했어야 할 TASK 비중 (경과일 기준 선형 계획 진도) */
     function calcPlanRate() {
@@ -2609,7 +2796,7 @@
         } else {
           badge.style.display = 'none';
         }
-        if (label) label.textContent = `저장된 결과 ${list.length}건`;
+        if (label) label.textContent = `총 ${list.length}건`;
       });
     }
 
@@ -2630,7 +2817,7 @@
       const label = document.getElementById('historyCountLabel');
 
       dbGetAll().then(all => {
-        label.textContent = `저장된 결과 ${all.length}건`;
+        label.textContent = `총 ${all.length}건`;
         const badge = document.getElementById('navCountHistory');
         if (all.length > 0) { badge.textContent = all.length; badge.style.display = 'inline-flex'; }
         else badge.style.display = 'none';
@@ -2664,7 +2851,7 @@
     <div class="hist-wbs-date">${r.wbsDate}<small>기준일</small></div>
     <span class="hist-active-badge">현재 분석 중</span>
   </div>
-  <div class="hist-filename">📎 ${r.fileName}</div>
+  <div class="hist-filename" title="${r.fileName}">📎 ${r.fileName}</div>
   <div class="hist-stats">
     <div class="hs-item"><div class="hs-label">전체 TASK</div><div class="hs-value">${s.total}</div></div>
     <div class="hs-item"><div class="hs-label">완료</div><div class="hs-value c-green">${s.done}</div></div>
