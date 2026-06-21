@@ -4,11 +4,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMS·SRM 재구축 | 주간 업무 알리미</title>
+  <title>PMS·SRM 재구축 | WBS 일정 분석</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     :root {
       --navy: #1B3F6A;
@@ -112,7 +113,26 @@
       height: 100vh;
       box-shadow: 3px 0 16px rgba(15, 30, 60, .25);
       overflow: hidden;
+      transition: width .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
     }
+    body.sidebar-collapsed .sidebar {
+      width: 0;
+      box-shadow: none;
+    }
+    .sidebar-toggle {
+      flex-shrink: 0;
+      width: 34px; height: 34px;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--card);
+      color: var(--navy);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+      align-self: center;
+      padding: 0;
+    }
+    .sidebar-toggle:hover { background: var(--bg2); }
 
     .sidebar::before {
       content: '';
@@ -971,6 +991,28 @@
       font-size: 22px;
     }
 
+    /* ===== 페이지 헤더 ===== */
+    .page-header {
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--line);
+    }
+    .breadcrumb {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11.5px; color: var(--text-muted);
+      margin-bottom: 7px; flex-wrap: wrap;
+    }
+    .breadcrumb-sep {
+      color: var(--line2); font-size: 10px; flex-shrink: 0;
+    }
+    .breadcrumb .bc-cur {
+      color: var(--navy2); font-weight: 700;
+    }
+    .page-title {
+      font-size: 19px; font-weight: 800;
+      color: var(--navy); letter-spacing: -.2px;
+    }
+
     /* ===== WBS 테이블 ===== */
     .filter-row {
       display: flex;
@@ -1436,6 +1478,64 @@
     #toast.ok { background: #065F46; }
     #toast.err { background: #991B1B; }
 
+    /* ===== 비밀번호 모달 ===== */
+    .auth-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.5);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+    }
+    .auth-overlay.open { display: flex; }
+    .auth-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 28px 28px 24px;
+      width: 300px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.22);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .auth-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .auth-card-desc {
+      font-size: 13px;
+      color: var(--text2);
+      margin: -6px 0 0;
+    }
+    .auth-card input[type="password"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      letter-spacing: 6px;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color .15s;
+    }
+    .auth-card input[type="password"]:focus { border-color: var(--accent); }
+    .auth-card-error {
+      font-size: 12px;
+      color: var(--red);
+      min-height: 16px;
+      margin-top: -6px;
+    }
+    .auth-card-btns {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
     /* ===== 분석 결과 조회 ===== */
     .hist-toolbar {
       display: flex;
@@ -1599,6 +1699,213 @@
       font-size: 14px;
     }
     .hist-empty svg { display: block; margin: 0 auto 14px; opacity: .35; }
+
+    /* === 프로젝트 구성원 관리 === */
+    .member-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .member-toolbar-left { font-size: 13px; color: var(--text-muted); }
+    .member-toolbar-left strong { color: var(--navy); font-size: 15px; }
+    .btn-add-member {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--navy2); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 8px 16px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .btn-add-member:hover { opacity: .85; }
+    .member-form-panel {
+      background: var(--bg2); border: 1.5px solid var(--line);
+      border-radius: var(--radius); padding: 20px 24px;
+      margin-bottom: 20px; display: none;
+    }
+    .member-form-panel.open { display: block; }
+    .member-form-panel h4 {
+      font-size: 14px; font-weight: 700; color: var(--navy);
+      margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+    }
+    .member-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+    .member-form-grid .full { grid-column: 1 / -1; }
+    .mf-group { display: flex; flex-direction: column; gap: 5px; }
+    .mf-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .mf-group input, .mf-group select, .mf-group textarea {
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      padding: 8px 10px; font-size: 13px; color: var(--navy);
+      background: #fff; outline: none; transition: border-color .15s; font-family: inherit;
+    }
+    .mf-group input:focus, .mf-group select:focus, .mf-group textarea:focus { border-color: var(--navy2); }
+    .mf-group textarea { resize: vertical; min-height: 64px; }
+    .member-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .btn-mf-save {
+      background: var(--navy2); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 8px 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-mf-cancel {
+      background: var(--bg2); color: var(--text-muted); border: 1.5px solid var(--line);
+      border-radius: var(--radius-sm); padding: 8px 16px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-mf-save:hover { opacity: .85; }
+    .btn-mf-cancel:hover { background: var(--line); }
+    .member-table-wrap { overflow-x: auto; }
+    .member-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .member-table th {
+      text-align: left; padding: 10px 14px;
+      background: var(--bg2); color: var(--text-muted);
+      font-size: 12px; font-weight: 600; border-bottom: 2px solid var(--line); white-space: nowrap;
+    }
+    .member-table td {
+      padding: 11px 14px; border-bottom: 1px solid var(--line2);
+      vertical-align: middle; color: var(--navy);
+    }
+    .member-table tr:last-child td { border-bottom: none; }
+    .member-table tr:hover td { background: var(--bg2); }
+    .member-role-badge {
+      display: inline-block; padding: 2px 10px;
+      border-radius: 20px; font-size: 11.5px; font-weight: 700;
+    }
+    .member-role-badge.pm  { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .member-role-badge.pl  { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+    .member-role-badge.dev { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .member-role-badge.etc { background: var(--bg2); color: var(--text-muted); border: 1px solid var(--line); }
+    .member-actions { display: flex; gap: 6px; white-space: nowrap; }
+    .btn-m-edit {
+      background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+      border-radius: var(--radius-sm); padding: 4px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn-m-del {
+      background: #FEE2E2; color: var(--red); border: 1px solid #FECACA;
+      border-radius: var(--radius-sm); padding: 4px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn-m-edit:hover, .btn-m-del:hover { opacity: .78; }
+    .member-empty {
+      text-align: center; padding: 56px 0; color: var(--text-muted); font-size: 14px;
+    }
+    .member-empty svg { display: block; margin: 0 auto 14px; opacity: .35; }
+
+    /* === 메일 보내기 === */
+    .mail-form { display: flex; flex-direction: column; }
+    .mail-row {
+      display: grid; grid-template-columns: 96px 1fr;
+      align-items: start; gap: 14px;
+      padding: 13px 0; border-bottom: 1px solid var(--line2);
+    }
+    .mail-row:last-of-type { border-bottom: none; }
+    .mail-row > label {
+      font-size: 13px; font-weight: 600; color: var(--text-muted);
+      padding-top: 8px; white-space: nowrap;
+    }
+    .mail-from-box {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; background: var(--bg2);
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      font-size: 13px; color: var(--navy); font-weight: 600;
+    }
+    .mail-from-addr { font-weight: 400; color: var(--text-muted); font-size: 12.5px; }
+    .mail-chip-wrap { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 0; min-height: 38px; align-items: center; }
+    .mail-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 12px; border-radius: 20px;
+      border: 1.5px solid var(--line); background: var(--bg2);
+      font-size: 12.5px; color: var(--text-muted);
+      cursor: pointer; user-select: none; transition: all .15s; white-space: nowrap;
+    }
+    .mail-chip:hover { border-color: var(--navy2); color: var(--navy); background: #EFF6FF; }
+    .mail-chip.selected { background: var(--navy2); border-color: var(--navy2); color: #fff; font-weight: 600; }
+    .mail-chip-sub { font-size: 11px; opacity: .75; }
+    .mail-chip-empty { font-size: 13px; color: var(--text-muted); }
+    .mail-chip-empty a { color: var(--navy2); text-decoration: underline; cursor: pointer; }
+    .mail-input {
+      width: 100%; box-sizing: border-box;
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      padding: 8px 12px; font-size: 13px; color: var(--navy);
+      background: #fff; outline: none; transition: border-color .15s; font-family: inherit;
+    }
+    .mail-input:focus { border-color: var(--navy2); }
+    .mail-textarea {
+      width: 100%; box-sizing: border-box;
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      padding: 12px 14px; font-size: 13px; color: var(--navy);
+      background: #fff; outline: none; transition: border-color .15s;
+      font-family: inherit; resize: vertical; min-height: 260px; line-height: 1.8;
+    }
+    .mail-textarea:focus { border-color: var(--navy2); }
+    .mail-actions {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 20px; gap: 12px; flex-wrap: wrap;
+    }
+    .mail-actions-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .btn-mail-send {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--navy2); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 10px 30px;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s;
+    }
+    .btn-mail-send:hover { opacity: .85; }
+    .btn-mail-reset {
+      background: var(--bg2); color: var(--text-muted); border: 1.5px solid var(--line);
+      border-radius: var(--radius-sm); padding: 9px 18px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-mail-reset:hover { background: var(--line); }
+
+    /* === EmailJS 설정 패널 === */
+    .ejs-panel {
+      border: 1.5px solid var(--line); border-radius: var(--radius);
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .ejs-panel-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 16px; cursor: pointer; background: var(--bg2);
+      user-select: none; transition: background .15s;
+    }
+    .ejs-panel-hd:hover { background: #e8edf4; }
+    .ejs-panel-hd-left { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--navy); }
+    .ejs-status-badge {
+      font-size: 11.5px; padding: 2px 10px; border-radius: 20px; font-weight: 600;
+    }
+    .ejs-status-badge.ok   { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+    .ejs-status-badge.warn { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .ejs-chevron { transition: transform .2s; color: var(--text-muted); }
+    .ejs-panel.open .ejs-chevron { transform: rotate(180deg); }
+    .ejs-panel-body { display: none; padding: 18px 20px; border-top: 1px solid var(--line); }
+    .ejs-panel.open .ejs-panel-body { display: block; }
+    .ejs-guide {
+      background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: var(--radius-sm);
+      padding: 13px 16px; margin-bottom: 18px; font-size: 12.5px; color: #1E40AF; line-height: 1.9;
+    }
+    .ejs-guide strong { color: #1D4ED8; }
+    .ejs-guide ol { margin: 6px 0 0 18px; padding: 0; }
+    .ejs-guide code {
+      background: rgba(37,99,168,.1); padding: 1px 6px; border-radius: 4px;
+      font-size: 12px; font-family: 'Consolas', monospace;
+    }
+    .ejs-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .ejs-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+    .ejs-field input {
+      width: 100%; box-sizing: border-box;
+      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+      padding: 7px 10px; font-size: 13px; color: var(--navy);
+      background: #fff; outline: none; font-family: inherit; transition: border-color .15s;
+    }
+    .ejs-field input:focus { border-color: var(--navy2); }
+    .ejs-field-actions { display: flex; gap: 8px; }
+    .btn-ejs-save {
+      background: var(--navy2); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 7px 18px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-ejs-save:hover { opacity: .85; }
+    .btn-ejs-clear {
+      background: var(--bg2); color: var(--text-muted); border: 1.5px solid var(--line);
+      border-radius: var(--radius-sm); padding: 7px 14px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-ejs-clear:hover { background: var(--line); }
+    .mail-send-mode {
+      font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm);
+      border: 1px solid; font-weight: 600;
+    }
+    .mail-send-mode.ejs { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
+    .mail-send-mode.fallback { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
   </style>
 </head>
 
@@ -1607,8 +1914,7 @@
   <!-- ===== 사이드바 ===== -->
   <div class="sidebar">
     <div class="brand">
-      <div class="b1">켑코이에스(주) · EERS팀</div>
-      <div class="b2">PMS·SRM 재구축 용역<br>주간 업무 알리미</div>
+      <div class="b2">PMS·SRM 재구축 용역<br>WBS 일정 분석</div>
       <div class="b-dot"><span></span><em>WBS 기반 자동 분석</em></div>
     </div>
 
@@ -1672,9 +1978,25 @@
       단계별 현황
     </div>
 
+    <div class="nav-section-label">메일 발송 관리</div>
+    <div class="nav-item" data-page="p-members">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      구성원 관리 <span class="nav-count" id="navCountMembers" style="background:var(--navy2);display:none">0</span>
+    </div>
+    <div class="nav-item" data-page="p-mail">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      메일 보내기
+    </div>
+
     <div class="sidebar-footer">
-      <strong>이희성 부장</strong><br>
-      켑코이에스(주) EERS팀
+      <strong>이희성 부장</strong>
     </div>
   </div>
 
@@ -1682,8 +2004,15 @@
   <div class="main">
 
     <div class="topbar">
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 열기/닫기">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
       <div class="topbar-left">
-        <h1>주간 업무 알리미 — PMS·SRM 재구축 용역</h1>
+        <h1>PMS·SRM 재구축 용역 — WBS 일정 분석</h1>
         <div class="sub">상세일정계획 WBS 기준, 공정율과 지연 업무를 자동 분석합니다. <span class="src-tag" id="srcTag">기본 데이터:
             20260602_상세일정계획_WBS</span></div>
       </div>
@@ -1702,7 +2031,10 @@
 
     <!-- ================= 대시보드 ================= -->
     <div class="page on" id="p-dash">
-
+      <div class="page-header">
+        <div class="page-title">대시보드</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>업무 알림</span><span class="breadcrumb-sep">›</span><span class="bc-cur">대시보드</span></div>
+      </div>
       <div class="progress-hero">
         <div class="gauge-wrap">
           <svg viewBox="0 0 130 130">
@@ -1843,6 +2175,10 @@
 
     <!-- ================= 금주 한 일 ================= -->
     <div class="page" id="p-this">
+      <div class="page-header">
+        <div class="page-title">금주 한 일</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>업무 알림</span><span class="breadcrumb-sep">›</span><span class="bc-cur">금주 한 일</span></div>
+      </div>
       <div class="card">
         <h3>
           <div class="h-left">
@@ -1861,6 +2197,10 @@
 
     <!-- ================= 차주 할 일 ================= -->
     <div class="page" id="p-next">
+      <div class="page-header">
+        <div class="page-title">차주 할 일</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>업무 알림</span><span class="breadcrumb-sep">›</span><span class="bc-cur">차주 할 일</span></div>
+      </div>
       <div class="card">
         <h3>
           <div class="h-left">
@@ -1884,6 +2224,10 @@
 
     <!-- ================= 지연 업무 ================= -->
     <div class="page" id="p-delay">
+      <div class="page-header">
+        <div class="page-title">지연 업무</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>업무 알림</span><span class="breadcrumb-sep">›</span><span class="bc-cur">지연 업무</span></div>
+      </div>
       <div class="card danger-card">
         <h3 class="danger-h">
           <div class="h-left">
@@ -1901,6 +2245,10 @@
 
     <!-- ================= 전체 일정 ================= -->
     <div class="page" id="p-all">
+      <div class="page-header">
+        <div class="page-title">WBS 전체 일정</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>전체 일정</span><span class="breadcrumb-sep">›</span><span class="bc-cur">WBS 전체 일정</span></div>
+      </div>
       <div class="card">
         <h3>
           <div class="h-left">
@@ -1941,6 +2289,10 @@
 
     <!-- ================= 단계별 현황 ================= -->
     <div class="page" id="p-phase">
+      <div class="page-header">
+        <div class="page-title">단계별 현황</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>전체 일정</span><span class="breadcrumb-sep">›</span><span class="bc-cur">단계별 현황</span></div>
+      </div>
       <div class="card">
         <h3>
           <div class="h-left">
@@ -1957,6 +2309,10 @@
 
     <!-- ================= 데이터 업데이트 ================= -->
     <div class="page" id="p-upload">
+      <div class="page-header">
+        <div class="page-title">WBS 업데이트</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>데이터 관리</span><span class="breadcrumb-sep">›</span><span class="bc-cur">WBS 업데이트</span></div>
+      </div>
       <div class="card">
         <h3>
           <div class="h-left">
@@ -2020,6 +2376,10 @@
 
     <!-- ================= 분석 결과 조회 ================= -->
     <div class="page" id="p-history">
+      <div class="page-header">
+        <div class="page-title">분석 결과 조회</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>데이터 관리</span><span class="breadcrumb-sep">›</span><span class="bc-cur">분석 결과 조회</span></div>
+      </div>
       <div class="section-card">
         <div class="hist-toolbar">
           <span class="hist-toolbar-label">기준일</span>
@@ -2042,7 +2402,232 @@
       </div>
     </div>
 
+    <!-- ================= 프로젝트 구성원 관리 ================= -->
+    <div class="page" id="p-members">
+      <div class="page-header">
+        <div class="page-title">프로젝트 구성원 관리</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>메일 발송 관리</span><span class="breadcrumb-sep">›</span><span class="bc-cur">프로젝트 구성원 관리</span></div>
+      </div>
+      <div class="card">
+        <h3>
+          <div class="h-left">
+            <div class="h-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            프로젝트 구성원
+          </div>
+        </h3>
+
+        <div class="member-toolbar">
+          <div class="member-toolbar-left">총 <strong id="memberCountLabel">0</strong>명 등록됨</div>
+          <button class="btn-add-member" onclick="toggleMemberForm()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            구성원 추가
+          </button>
+        </div>
+
+        <!-- 추가/수정 폼 -->
+        <div class="member-form-panel" id="memberFormPanel">
+          <h4 id="memberFormTitle">구성원 추가</h4>
+          <input type="hidden" id="mfEditId">
+          <input type="hidden" id="mfCreatedAt">
+          <div class="member-form-grid">
+            <div class="mf-group">
+              <label>이름 <span style="color:var(--red)">*</span></label>
+              <input type="text" id="mfName" placeholder="홍길동">
+            </div>
+            <div class="mf-group">
+              <label>역할 <span style="color:var(--red)">*</span></label>
+              <input type="text" id="mfRole" placeholder="예) PM, PL, 개발, 설계">
+            </div>
+            <div class="mf-group">
+              <label>이메일 <span style="color:var(--red)">*</span></label>
+              <input type="email" id="mfEmail" placeholder="example@company.com">
+            </div>
+            <div class="mf-group">
+              <label>연락처 <span style="color:var(--red)">*</span></label>
+              <input type="text" id="mfPhone" placeholder="010-0000-0000">
+            </div>
+            <div class="mf-group">
+              <label>직책 <span style="color:var(--red)">*</span></label>
+              <input type="text" id="mfTitle" placeholder="예) 부장, 차장, 과장">
+            </div>
+          </div>
+          <div class="member-form-actions">
+            <button class="btn-mf-cancel" onclick="closeMemberForm()">취소</button>
+            <button class="btn-mf-save" onclick="saveMember()">저장</button>
+          </div>
+        </div>
+
+        <!-- 목록 테이블 -->
+        <div class="member-table-wrap">
+          <table class="member-table">
+            <thead>
+              <tr>
+                <th style="width:36px">#</th>
+                <th>이름</th>
+                <th>역할</th>
+                <th>직책</th>
+                <th>이메일</th>
+                <th>연락처</th>
+                <th style="width:96px">관리</th>
+              </tr>
+            </thead>
+            <tbody id="memberTableBody">
+              <tr><td colspan="7"><div class="member-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                등록된 구성원이 없습니다.<br>위의 <b>구성원 추가</b> 버튼을 눌러 추가하세요.
+              </div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 메일 보내기 ================= -->
+    <div class="page" id="p-mail">
+      <div class="page-header">
+        <div class="page-title">메일 보내기</div>
+        <div class="breadcrumb"><span>홈</span><span class="breadcrumb-sep">›</span><span>메일 발송 관리</span><span class="breadcrumb-sep">›</span><span class="bc-cur">메일 보내기</span></div>
+      </div>
+      <div class="card">
+        <h3>
+          <div class="h-left">
+            <div class="h-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            메일 작성
+          </div>
+        </h3>
+
+        <!-- EmailJS 발송 설정 패널 -->
+        <div class="ejs-panel" id="ejsPanel">
+          <div class="ejs-panel-hd" onclick="toggleEjsPanel()">
+            <div class="ejs-panel-hd-left">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+              </svg>
+              EmailJS 발송 설정
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="ejs-status-badge warn" id="ejsStatusBadge">미설정 — 메일 앱으로 대체 발송</span>
+              <svg class="ejs-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div class="ejs-panel-body">
+            <div class="ejs-guide">
+              <strong>EmailJS를 사용하면 GitHub Pages에서도 실제 메일을 직접 발송할 수 있습니다.</strong>
+              <ol>
+                <li><a href="https://www.emailjs.com" target="_blank">emailjs.com</a> 에서 무료 가입 (월 200건 무료)</li>
+                <li><b>Email Services</b> 탭 → Add New Service → Naver / Gmail 선택 후 SMTP 연결</li>
+                <li><b>Email Templates</b> 탭 → Create New Template, 아래 변수 사용:<br>
+                  To: <code>{{to_email}}</code> · CC: <code>{{cc_email}}</code> · Subject: <code>{{subject}}</code> · Body: <code>{{message}}</code> · Reply-to: <code>{{reply_to}}</code>
+                </li>
+                <li><b>Account → API Keys</b>에서 <b>Public Key</b> 복사</li>
+                <li>아래 세 값을 입력하고 <b>저장</b>을 누르세요.</li>
+              </ol>
+            </div>
+            <div class="ejs-fields">
+              <div class="ejs-field">
+                <label>Public Key</label>
+                <input type="text" id="ejsPublicKey" placeholder="예) user_xxxxxxxxxxxxxx">
+              </div>
+              <div class="ejs-field">
+                <label>Service ID</label>
+                <input type="text" id="ejsServiceId" placeholder="예) service_xxxxxxx">
+              </div>
+              <div class="ejs-field">
+                <label>Template ID</label>
+                <input type="text" id="ejsTemplateId" placeholder="예) template_xxxxxxx">
+              </div>
+            </div>
+            <div class="ejs-field-actions">
+              <button class="btn-ejs-save" onclick="saveEjsConfig()">저장</button>
+              <button class="btn-ejs-clear" onclick="clearEjsConfig()">설정 초기화</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mail-form">
+          <!-- 보내는 사람 -->
+          <div class="mail-row">
+            <label>보내는 사람</label>
+            <div class="mail-from-box">
+              이희성
+              <span class="mail-from-addr">leehee43@naver.com</span>
+            </div>
+          </div>
+          <!-- 받는 사람 -->
+          <div class="mail-row">
+            <label>받는 사람 <span style="color:var(--red)">*</span></label>
+            <div class="mail-chip-wrap" id="mailToChips"></div>
+          </div>
+          <!-- 참조 -->
+          <div class="mail-row">
+            <label>참조</label>
+            <div class="mail-chip-wrap" id="mailCcChips"></div>
+          </div>
+          <!-- 제목 -->
+          <div class="mail-row">
+            <label>제목 <span style="color:var(--red)">*</span></label>
+            <input class="mail-input" type="text" id="mailSubject" placeholder="메일 제목을 입력하세요">
+          </div>
+          <!-- 내용 -->
+          <div class="mail-row">
+            <label>내용 <span style="color:var(--red)">*</span></label>
+            <textarea class="mail-textarea" id="mailBody" placeholder="메일 내용을 입력하세요"></textarea>
+          </div>
+        </div>
+
+        <div class="mail-actions">
+          <div id="mailSendModeNote" class="mail-actions-note">
+            ※ EmailJS 미설정 — 기기의 기본 메일 앱으로 발송됩니다.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-mail-reset" onclick="resetMailForm()">초기화</button>
+            <button class="btn-mail-send" onclick="sendMail()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              발송
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="footer">PMS·SRM 재구축 용역 상세일정계획 WBS 기반 프로토타입 · 작성자: 이희성</div>
+  </div>
+
+  <!-- 비밀번호 모달 -->
+  <div id="authOverlay" class="auth-overlay" onclick="if(event.target===this)closeAuthModal()">
+    <div class="auth-card">
+      <div class="auth-card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        관리자 확인
+      </div>
+      <p class="auth-card-desc">이 메뉴는 관리자만 접근할 수 있습니다.</p>
+      <input type="password" id="authPwInput" placeholder="비밀번호" maxlength="20"
+             onkeydown="if(event.key==='Enter')submitAuth()">
+      <div id="authError" class="auth-card-error"></div>
+      <div class="auth-card-btns">
+        <button class="btn btn-ghost" onclick="closeAuthModal()">취소</button>
+        <button class="btn btn-primary" onclick="submitAuth()">확인</button>
+      </div>
+    </div>
   </div>
 
   <!-- 토스트 -->
@@ -2487,6 +3072,43 @@
     document.getElementById('filterStatus').addEventListener('change', renderAllTable);
     document.getElementById('filterKeyword').addEventListener('input', renderAllTable);
 
+    function toggleSidebar() {
+      document.body.classList.toggle('sidebar-collapsed');
+    }
+
+    /* ===== 관리자 인증 ===== */
+    const PROTECTED_PAGES = new Set(['p-members', 'p-mail']);
+    let _authed = false;
+    let _pendingPage = '';
+
+    function requireAuth(pageId) {
+      if (!PROTECTED_PAGES.has(pageId) || _authed) { navigateTo(pageId); return; }
+      _pendingPage = pageId;
+      document.getElementById('authOverlay').classList.add('open');
+      const inp = document.getElementById('authPwInput');
+      inp.value = '';
+      document.getElementById('authError').textContent = '';
+      setTimeout(() => inp.focus(), 80);
+    }
+
+    function submitAuth() {
+      const val = document.getElementById('authPwInput').value;
+      if (val === '4343') {
+        _authed = true;
+        closeAuthModal();
+        navigateTo(_pendingPage);
+      } else {
+        document.getElementById('authError').textContent = '비밀번호가 올바르지 않습니다.';
+        const inp = document.getElementById('authPwInput');
+        inp.value = '';
+        inp.focus();
+      }
+    }
+
+    function closeAuthModal() {
+      document.getElementById('authOverlay').classList.remove('open');
+    }
+
     function navigateTo(pageId) {
       document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
       document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
@@ -2495,10 +3117,12 @@
       const page = document.getElementById(pageId);
       if (page) page.classList.add('on');
       if (pageId === 'p-history') renderHistoryPage();
+      if (pageId === 'p-members') renderMembersPage();
+      if (pageId === 'p-mail') renderMailPage();
     }
 
     document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => navigateTo(item.dataset.page));
+      item.addEventListener('click', () => requireAuth(item.dataset.page));
     });
 
     function populateFileSelect(activeId) {
@@ -2516,6 +3140,173 @@
     function onFileSelectChange(idStr) {
       if (!idStr) return;
       restoreAnalysis(Number(idStr));
+    }
+
+    /* ===================== 메일 보내기 ===================== */
+    const _mailTo = new Set();
+    const _mailCc = new Set();
+
+    function renderMailPage() {
+      renderEjsStatus();
+      mdbGetAll().then(members => {
+        _mailTo.clear();
+        _mailCc.clear();
+        const toWrap = document.getElementById('mailToChips');
+        const ccWrap = document.getElementById('mailCcChips');
+        if (!toWrap || !ccWrap) return;
+
+        if (members.length === 0) {
+          const msg = `<span class="mail-chip-empty">등록된 구성원이 없습니다. <a onclick="navigateTo('p-members')">구성원 관리</a>에서 먼저 추가하세요.</span>`;
+          toWrap.innerHTML = msg;
+          ccWrap.innerHTML = msg;
+          return;
+        }
+
+        toWrap.innerHTML = members.map(m =>
+          `<span class="mail-chip" id="to-${m.id}" onclick="toggleMailChip(${m.id},'to')">
+            ${m.name} <span class="mail-chip-sub">${m.role}</span>
+          </span>`
+        ).join('');
+
+        ccWrap.innerHTML = members.map(m =>
+          `<span class="mail-chip" id="cc-${m.id}" onclick="toggleMailChip(${m.id},'cc')">
+            ${m.name} <span class="mail-chip-sub">${m.role}</span>
+          </span>`
+        ).join('');
+      });
+    }
+
+    function toggleMailChip(id, area) {
+      const set = area === 'to' ? _mailTo : _mailCc;
+      const el = document.getElementById(`${area}-${id}`);
+      if (!el) return;
+      if (set.has(id)) { set.delete(id); el.classList.remove('selected'); }
+      else             { set.add(id);    el.classList.add('selected'); }
+    }
+
+    /* --- EmailJS 설정 관리 --- */
+    function getEjsConfig() {
+      return {
+        publicKey:  localStorage.getItem('ejs_pub')  || '',
+        serviceId:  localStorage.getItem('ejs_svc')  || '',
+        templateId: localStorage.getItem('ejs_tpl')  || '',
+      };
+    }
+    function isEjsConfigured() {
+      const c = getEjsConfig();
+      return !!(c.publicKey && c.serviceId && c.templateId);
+    }
+    function saveEjsConfig() {
+      const pub = document.getElementById('ejsPublicKey').value.trim();
+      const svc = document.getElementById('ejsServiceId').value.trim();
+      const tpl = document.getElementById('ejsTemplateId').value.trim();
+      if (!pub || !svc || !tpl) { showToast('세 항목을 모두 입력하세요.', 'err'); return; }
+      localStorage.setItem('ejs_pub', pub);
+      localStorage.setItem('ejs_svc', svc);
+      localStorage.setItem('ejs_tpl', tpl);
+      renderEjsStatus();
+      document.getElementById('ejsPanel').classList.remove('open');
+      showToast('EmailJS 설정이 저장되었습니다.', 'ok');
+    }
+    function clearEjsConfig() {
+      if (!confirm('EmailJS 설정을 초기화하시겠습니까?')) return;
+      ['ejs_pub','ejs_svc','ejs_tpl'].forEach(k => localStorage.removeItem(k));
+      document.getElementById('ejsPublicKey').value  = '';
+      document.getElementById('ejsServiceId').value  = '';
+      document.getElementById('ejsTemplateId').value = '';
+      renderEjsStatus();
+      showToast('설정이 초기화되었습니다.', '');
+    }
+    function renderEjsStatus() {
+      const ok = isEjsConfigured();
+      const badge = document.getElementById('ejsStatusBadge');
+      const note  = document.getElementById('mailSendModeNote');
+      if (badge) {
+        badge.className = 'ejs-status-badge ' + (ok ? 'ok' : 'warn');
+        badge.textContent = ok ? '설정 완료 — EmailJS 직접 발송' : '미설정 — 메일 앱으로 대체 발송';
+      }
+      if (note) {
+        note.textContent = ok
+          ? '※ EmailJS를 통해 직접 발송됩니다.'
+          : '※ EmailJS 미설정 — 기기의 기본 메일 앱으로 발송됩니다.';
+      }
+      if (ok) {
+        const cfg = getEjsConfig();
+        document.getElementById('ejsPublicKey').value  = cfg.publicKey;
+        document.getElementById('ejsServiceId').value  = cfg.serviceId;
+        document.getElementById('ejsTemplateId').value = cfg.templateId;
+      }
+    }
+    function toggleEjsPanel() {
+      document.getElementById('ejsPanel').classList.toggle('open');
+    }
+
+    /* --- 메일 발송 --- */
+    function sendMail() {
+      if (_mailTo.size === 0) { showToast('받는 사람을 선택하세요.', 'err'); return; }
+      const subject = document.getElementById('mailSubject').value.trim();
+      const body    = document.getElementById('mailBody').value.trim();
+      if (!subject) { showToast('제목을 입력하세요.', 'err'); document.getElementById('mailSubject').focus(); return; }
+      if (!body)    { showToast('내용을 입력하세요.', 'err'); document.getElementById('mailBody').focus(); return; }
+
+      mdbGetAll().then(members => {
+        const toEmails = [..._mailTo].map(id => members.find(m => m.id === id)?.email).filter(Boolean);
+        const ccEmails = [..._mailCc].map(id => members.find(m => m.id === id)?.email).filter(Boolean);
+        if (isEjsConfigured()) {
+          sendViaEmailJS(toEmails, ccEmails, subject, body);
+        } else {
+          sendViaMailto(toEmails, ccEmails, subject, body);
+        }
+      });
+    }
+
+    function sendViaEmailJS(toEmails, ccEmails, subject, body) {
+      const cfg = getEjsConfig();
+      const btn = document.querySelector('.btn-mail-send');
+      const origHTML = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 발송 중...';
+
+      emailjs.init({ publicKey: cfg.publicKey });
+      emailjs.send(cfg.serviceId, cfg.templateId, {
+        to_email:  toEmails.join(', '),
+        cc_email:  ccEmails.join(', '),
+        from_name: '이희성',
+        reply_to:  'leehee43@naver.com',
+        subject:   subject,
+        message:   body,
+      }).then(() => {
+        showToast('메일이 성공적으로 발송되었습니다.', 'ok');
+        resetMailForm();
+      }).catch(err => {
+        const msg = (err && err.text) ? err.text : (err && err.message) ? err.message : JSON.stringify(err);
+        showToast('발송 실패: ' + msg, 'err');
+      }).finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+      });
+    }
+
+    function sendViaMailto(toEmails, ccEmails, subject, body) {
+      const params = [];
+      if (ccEmails.length) params.push('cc=' + encodeURIComponent(ccEmails.join(',')));
+      params.push('subject=' + encodeURIComponent(subject));
+      params.push('body='    + encodeURIComponent(body));
+      const a = document.createElement('a');
+      a.href = `mailto:${toEmails.join(',')}?${params.join('&')}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('메일 앱을 실행합니다.', 'ok');
+    }
+
+    function resetMailForm() {
+      _mailTo.clear();
+      _mailCc.clear();
+      document.querySelectorAll('#mailToChips .mail-chip, #mailCcChips .mail-chip')
+        .forEach(el => el.classList.remove('selected'));
+      document.getElementById('mailSubject').value = '';
+      document.getElementById('mailBody').value    = '';
     }
 
     /* ===================== 엑셀 업로드 / 파싱 ===================== */
@@ -2640,7 +3431,7 @@
     }
 
     /* ===================== IndexedDB ===================== */
-    const DB_NAME = 'WbsAnalysisDB', DB_VER = 1, STORE = 'analyses';
+    const DB_NAME = 'WbsAnalysisDB', DB_VER = 2, STORE = 'analyses', MSTORE = 'members';
     let _db = null;
 
     function initDB() {
@@ -2652,6 +3443,9 @@
           if (!d.objectStoreNames.contains(STORE)) {
             const s = d.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
             s.createIndex('wbsDate', 'wbsDate', { unique: false });
+          }
+          if (!d.objectStoreNames.contains(MSTORE)) {
+            d.createObjectStore(MSTORE, { keyPath: 'id', autoIncrement: true });
           }
         };
         req.onsuccess = e => { _db = e.target.result; resolve(_db); };
@@ -2696,6 +3490,37 @@
         const rec = Object.assign({}, record, { id });
         const req = d.transaction(STORE, 'readwrite').objectStore(STORE).put(rec);
         req.onsuccess = () => resolve(id);
+        req.onerror = e => reject(e.target.error);
+      }));
+    }
+
+    /* === Members store (MSTORE) helpers === */
+    function mdbGetAll() {
+      return initDB().then(d => new Promise((resolve, reject) => {
+        const req = d.transaction(MSTORE, 'readonly').objectStore(MSTORE).getAll();
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+      }));
+    }
+    function mdbAdd(record) {
+      return initDB().then(d => new Promise((resolve, reject) => {
+        const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).add(record);
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e.target.error);
+      }));
+    }
+    function mdbPut(id, record) {
+      return initDB().then(d => new Promise((resolve, reject) => {
+        const rec = Object.assign({}, record, { id });
+        const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(rec);
+        req.onsuccess = () => resolve(id);
+        req.onerror = e => reject(e.target.error);
+      }));
+    }
+    function mdbDelete(id) {
+      return initDB().then(d => new Promise((resolve, reject) => {
+        const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).delete(id);
+        req.onsuccess = () => resolve();
         req.onerror = e => reject(e.target.error);
       }));
     }
@@ -2803,6 +3628,140 @@
     function resetHistSearch() {
       document.getElementById('histSearchName').value = '';
       renderHistoryPage();
+    }
+
+    /* ===================== 프로젝트 구성원 관리 ===================== */
+    function toggleMemberForm(editData) {
+      const panel = document.getElementById('memberFormPanel');
+      if (editData) {
+        document.getElementById('memberFormTitle').textContent = '구성원 수정';
+        document.getElementById('mfEditId').value = editData.id;
+        document.getElementById('mfCreatedAt').value = editData.createdAt || '';
+        document.getElementById('mfName').value = editData.name || '';
+        document.getElementById('mfRole').value = editData.role || '';
+        document.getElementById('mfEmail').value = editData.email || '';
+        document.getElementById('mfPhone').value = editData.phone || '';
+        document.getElementById('mfTitle').value = editData.title || '';
+        panel.classList.add('open');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        if (panel.classList.contains('open')) {
+          closeMemberForm();
+        } else {
+          document.getElementById('memberFormTitle').textContent = '구성원 추가';
+          document.getElementById('mfEditId').value = '';
+          document.getElementById('mfCreatedAt').value = '';
+          document.getElementById('mfName').value = '';
+          document.getElementById('mfRole').value = '';
+          document.getElementById('mfEmail').value = '';
+          document.getElementById('mfPhone').value = '';
+          document.getElementById('mfTitle').value = '';
+          panel.classList.add('open');
+          document.getElementById('mfName').focus();
+        }
+      }
+    }
+
+    function closeMemberForm() {
+      document.getElementById('memberFormPanel').classList.remove('open');
+    }
+
+    function saveMember() {
+      const fields = [
+        { id: 'mfName',  label: '이름' },
+        { id: 'mfRole',  label: '역할' },
+        { id: 'mfEmail', label: '이메일' },
+        { id: 'mfPhone', label: '연락처' },
+        { id: 'mfTitle', label: '직책' },
+      ];
+      for (const f of fields) {
+        const el = document.getElementById(f.id);
+        if (!el.value.trim()) {
+          showToast(`${f.label}을(를) 입력하세요.`, 'err');
+          el.focus();
+          return;
+        }
+      }
+
+      const name  = document.getElementById('mfName').value.trim();
+      const email = document.getElementById('mfEmail').value.trim();
+      const editId = document.getElementById('mfEditId').value;
+      const createdAt = document.getElementById('mfCreatedAt').value || new Date().toISOString();
+      const rec = {
+        name,
+        role:  document.getElementById('mfRole').value.trim(),
+        email,
+        phone: document.getElementById('mfPhone').value.trim(),
+        title: document.getElementById('mfTitle').value.trim(),
+        createdAt
+      };
+
+      const promise = editId ? mdbPut(Number(editId), rec) : mdbAdd(rec);
+      promise.then(() => {
+        showToast(editId ? `"${name}" 정보가 수정되었습니다.` : `"${name}" 구성원이 추가되었습니다.`, 'ok');
+        closeMemberForm();
+        renderMembersPage();
+      }).catch(err => showToast('저장 오류: ' + err.message, 'err'));
+    }
+
+    function editMember(id) {
+      mdbGetAll().then(all => {
+        const m = all.find(r => r.id === id);
+        if (m) toggleMemberForm(m);
+      });
+    }
+
+    function deleteMember(id) {
+      mdbGetAll().then(all => {
+        const m = all.find(r => r.id === id);
+        if (!m) return;
+        if (!confirm(`"${m.name}" (${m.email}) 구성원을 삭제하시겠습니까?`)) return;
+        mdbDelete(id).then(() => {
+          showToast('삭제되었습니다.', '');
+          renderMembersPage();
+        }).catch(err => showToast('삭제 오류: ' + err.message, 'err'));
+      });
+    }
+
+    function renderMembersPage() {
+      const tbody = document.getElementById('memberTableBody');
+      const countLabel = document.getElementById('memberCountLabel');
+      const navBadge = document.getElementById('navCountMembers');
+      if (!tbody) return;
+
+      mdbGetAll().then(all => {
+        const count = all.length;
+        if (countLabel) countLabel.textContent = count;
+        if (navBadge) { navBadge.textContent = count; navBadge.style.display = count > 0 ? 'inline-flex' : 'none'; }
+
+        if (count === 0) {
+          tbody.innerHTML = `<tr><td colspan="7"><div class="member-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            등록된 구성원이 없습니다.<br>위의 <b>구성원 추가</b> 버튼을 눌러 추가하세요.
+          </div></td></tr>`;
+          return;
+        }
+
+        const dash = '<span style="color:var(--text-muted)">-</span>';
+        tbody.innerHTML = all.map((m, i) => {
+          const role = m.role ? `<span class="member-role-badge dev">${m.role}</span>` : dash;
+          return `<tr>
+            <td style="color:var(--text-muted);font-size:12px">${i + 1}</td>
+            <td><strong>${m.name}</strong></td>
+            <td>${role}</td>
+            <td>${m.title || dash}</td>
+            <td>${m.email}</td>
+            <td>${m.phone || dash}</td>
+            <td><div class="member-actions">
+              <button class="btn-m-edit" onclick="editMember(${m.id})">수정</button>
+              <button class="btn-m-del" onclick="deleteMember(${m.id})">삭제</button>
+            </div></td>
+          </tr>`;
+        }).join('');
+      });
     }
 
     function fmtSavedAt(iso) {
@@ -2998,11 +3957,17 @@
     document.getElementById('btnSaveFinal').addEventListener('click', saveCurrentAnalysis);
 
     /* ===================== 초기 실행 ===================== */
+    if (!localStorage.getItem('ejs_pub')) {
+      localStorage.setItem('ejs_pub', 'TPuULBn-0jwemw9wO');
+      localStorage.setItem('ejs_svc', 'service_qoookg3');
+      localStorage.setItem('ejs_tpl', 'template_bhjqsx9');
+    }
     initFilters();
     renderAll();
     initDB().then(() => {
       updateHistoryCount();
       populateFileSelect();
+      renderMembersPage();
       const initId = new URLSearchParams(window.location.search).get('id');
       if (initId) {
         restoreAnalysis(Number(initId));
