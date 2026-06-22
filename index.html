@@ -8,8 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+  <!-- GitHub Pages 배포용 EmailJS 설정. 값은 emailjs.config.js에서 관리합니다. -->
+  <script src="emailjs.config.js"></script>
   <style>
     :root {
       --navy: #1B3F6A;
@@ -31,7 +35,7 @@
       --line2: #C8D2E3;
       --text: #1A2332;
       --text-sub: #5A6880;
-      --text-muted: #8C9BB0;
+      --text-muted: #3E4E62;
       --shadow-sm: 0 1px 3px rgba(26, 51, 102, .08), 0 1px 2px rgba(26, 51, 102, .05);
       --shadow-md: 0 4px 12px rgba(26, 51, 102, .10), 0 2px 6px rgba(26, 51, 102, .06);
       --shadow-lg: 0 10px 28px rgba(26, 51, 102, .14), 0 4px 10px rgba(26, 51, 102, .08);
@@ -312,6 +316,12 @@
       gap: 14px;
       margin-bottom: 24px;
       animation: fadeInUp .35s ease both;
+    }
+    .topbar-title-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
     }
 
     .topbar-left h1 {
@@ -1295,7 +1305,7 @@
 
     .upload-status {
       margin-top: 16px;
-      padding: 13px 16px;
+      padding: 15px 18px;
       border-radius: var(--radius-sm);
       font-size: 13px;
       display: none;
@@ -1480,61 +1490,59 @@
 
     /* ===== 비밀번호 모달 ===== */
     .auth-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(15,23,42,.5);
-      z-index: 9000;
-      align-items: center;
-      justify-content: center;
+      display: none; position: fixed; inset: 0; z-index: 9000;
+      align-items: center; justify-content: center;
+      padding: 20px; box-sizing: border-box;
+      background: rgba(15, 30, 52, .62); backdrop-filter: blur(5px);
     }
-    .auth-overlay.open { display: flex; }
+    .auth-overlay.open { display: flex; animation: auth-fade-in .18s ease-out; }
+    @keyframes auth-fade-in { from { opacity: 0; } to { opacity: 1; } }
     .auth-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 28px 28px 24px;
-      width: 300px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.22);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+      width: min(100%, 390px); overflow: hidden;
+      background: var(--card); border: 1px solid rgba(255,255,255,.72);
+      border-radius: 16px; box-shadow: 0 24px 70px rgba(7, 20, 39, .34);
+      animation: auth-card-in .22s cubic-bezier(.2,.8,.2,1);
     }
-    .auth-card-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--navy);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    @keyframes auth-card-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .auth-card-head {
+      position: relative; padding: 24px 26px 21px;
+      background: linear-gradient(135deg, var(--navy), #245888);
+      color: #fff;
     }
-    .auth-card-desc {
-      font-size: 13px;
-      color: var(--text2);
-      margin: -6px 0 0;
+    .auth-close {
+      position: absolute; top: 13px; right: 13px; width: 30px; height: 30px;
+      display: grid; place-items: center; border: 0; border-radius: 8px;
+      background: rgba(255,255,255,.12); color: #fff; cursor: pointer;
+      transition: background .15s, transform .15s;
     }
-    .auth-card input[type="password"] {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1.5px solid var(--line);
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      letter-spacing: 6px;
-      outline: none;
-      box-sizing: border-box;
-      transition: border-color .15s;
+    .auth-close:hover { background: rgba(255,255,255,.22); transform: rotate(90deg); }
+    .auth-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .7px; color: #CFE3F8; }
+    .auth-card-title { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 19px; font-weight: 700; letter-spacing: -.3px; }
+    .auth-lock-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: rgba(255,255,255,.15); }
+    .auth-card-desc { margin: 8px 0 0; color: #DDEBFA; font-size: 12.5px; line-height: 1.6; }
+    .auth-card-body { padding: 23px 26px 25px; }
+    .auth-field-label { display: block; margin-bottom: 8px; color: var(--text-sub); font-size: 12px; font-weight: 700; }
+    .auth-password-wrap { position: relative; }
+    .auth-card input[type="password"], .auth-card input[type="text"] {
+      width: 100%; height: 45px; padding: 0 45px 0 13px; box-sizing: border-box;
+      border: 1.5px solid var(--line); border-radius: 9px; background: #fff;
+      color: var(--navy); font-size: 17px; letter-spacing: 5px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
     }
-    .auth-card input[type="password"]:focus { border-color: var(--accent); }
+    .auth-card input[type="password"]::placeholder, .auth-card input[type="text"]::placeholder { letter-spacing: 0; font-size: 13px; }
+    .auth-card input[type="password"]:focus, .auth-card input[type="text"]:focus { border-color: var(--navy2); box-shadow: 0 0 0 3px rgba(37,99,168,.12); }
+    .auth-password-toggle { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); width: 31px; height: 31px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); cursor: pointer; }
+    .auth-password-toggle:hover { background: var(--bg2); color: var(--navy2); }
     .auth-card-error {
-      font-size: 12px;
-      color: var(--red);
-      min-height: 16px;
-      margin-top: -6px;
+      min-height: 18px; margin-top: 8px; color: var(--red); font-size: 12px; line-height: 1.5;
     }
+    .auth-card-error.show { padding-left: 2px; }
     .auth-card-btns {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
+      display: flex; gap: 8px; margin-top: 14px;
     }
+    .auth-card-btns .btn { flex: 1; min-height: 40px; border-radius: 8px; }
+    .auth-card-foot { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 11.5px; text-align: center; }
+    @media (max-width: 480px) { .auth-overlay { padding: 16px; } .auth-card-head { padding: 21px 22px 19px; } .auth-card-body { padding: 21px 22px 22px; } }
 
     /* ===== 분석 결과 조회 ===== */
     .hist-toolbar {
@@ -1589,101 +1597,67 @@
       padding: 3px 10px;
       white-space: nowrap;
     }
-    .hist-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 12px;
-    }
+    .hist-grid { display: flex; flex-direction: column; gap: 8px; }
     .hist-card {
+      display: grid;
+      grid-template-columns: 118px minmax(190px, 1.3fr) minmax(360px, 2.2fr) auto;
+      align-items: center;
+      gap: 16px;
       background: var(--card2);
       border: 1.5px solid var(--line);
-      border-radius: var(--radius-md);
-      padding: 14px 16px;
+      border-radius: 10px;
+      padding: 13px 16px;
       transition: box-shadow .18s, border-color .18s;
     }
-    .hist-card:hover { box-shadow: var(--shadow-md); border-color: var(--line2); }
+    .hist-card:hover { box-shadow: var(--shadow-md); border-color: var(--navy3); }
     .hist-card.active-snapshot { border-color: var(--accent); }
-    .hist-card-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    .hist-wbs-date {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--navy);
-      letter-spacing: .2px;
-    }
-    .hist-wbs-date small {
-      font-size: 10px;
-      font-weight: 500;
-      color: var(--text-muted);
-      margin-left: 4px;
-    }
-    .hist-active-badge {
-      display: none;
-      background: var(--accent);
-      color: #fff;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 20px;
-      white-space: nowrap;
-    }
+    .hist-date-block { padding-right: 14px; border-right: 1px solid var(--line); }
+    .hist-wbs-date { font-size: 18px; font-weight: 800; color: var(--navy); letter-spacing: -.2px; white-space: nowrap; }
+    .hist-wbs-date small { display: block; margin: 4px 0 0; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .hist-active-badge { display: none; margin-top: 7px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
     .hist-card.active-snapshot .hist-active-badge { display: inline-block; }
-    .hist-filename {
-      font-size: 11.5px;
-      color: var(--text-sub);
-      margin-bottom: 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .hist-stats {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 4px;
-      margin-bottom: 10px;
-    }
-    .hs-item {
-      background: var(--bg);
-      border-radius: 5px;
-      padding: 5px 4px;
-      text-align: center;
-    }
-    .hs-label { font-size: 9.5px; color: var(--text-muted); margin-bottom: 2px; white-space: nowrap; }
-    .hs-value { font-size: 13px; font-weight: 700; color: var(--text); }
+    .hist-file-block { min-width: 0; }
+    .hist-filename { font-size: 14.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hist-saved-at { font-size: 12px; color: var(--text-sub); white-space: nowrap; }
+    .hist-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .hs-item { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 6px; text-align: center; }
+    .hs-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; white-space: nowrap; }
+    .hs-value { font-size: 16px; font-weight: 800; color: var(--text); }
     .hs-value.c-green { color: var(--green); }
     .hs-value.c-red { color: var(--red); }
     .hs-value.c-accent { color: var(--accent); }
-    .hist-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-top: 1px solid var(--line);
-      padding-top: 10px;
-      margin-top: 2px;
-      gap: 6px;
-    }
-    .hist-saved-at { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-    .hist-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+    .hist-footer { display: flex; align-items: center; gap: 6px; }
+    .hist-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
     .hist-actions button {
       display: inline-flex; align-items: center; gap: 3px;
       border: 1px solid transparent;
       border-radius: 5px;
-      padding: 5px 9px;
-      font-size: 11.5px;
+      padding: 7px 11px;
+      font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
       transition: opacity .15s;
       white-space: nowrap;
     }
     .hist-actions button:hover { opacity: .78; }
+    #historyList .hist-actions button { min-height: 36px; padding: 7px 11px; font-size: 12.5px; }
     .btn-restore { background: var(--navy2); color: #fff; }
     .btn-link { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
     .btn-download { background: var(--bg2); color: var(--navy); border-color: var(--line2); }
     .btn-del { background: #FEE2E2; color: var(--red); border-color: #FECACA; }
+    @media (max-width: 1180px) {
+      .hist-card { grid-template-columns: 112px minmax(180px, 1fr); }
+      .hist-stats { grid-column: 1 / -1; }
+      .hist-footer { grid-column: 2; grid-row: 1; justify-self: end; }
+    }
+    @media (max-width: 720px) {
+      .hist-card { display: flex; flex-wrap: wrap; gap: 11px; }
+      .hist-date-block { border-right: 0; padding-right: 0; }
+      .hist-file-block { flex: 1; min-width: 150px; }
+      .hist-stats { width: 100%; grid-template-columns: repeat(3, 1fr); }
+      .hist-footer { width: 100%; justify-content: flex-start; }
+      .hist-actions { justify-content: flex-start; }
+    }
     .btn-copy-text {
       display: inline-flex; align-items: center; gap: 5px;
       background: #F0FDF4; color: #166534;
@@ -1789,6 +1763,10 @@
       padding: 13px 0; border-bottom: 1px solid var(--line2);
     }
     .mail-row:last-of-type { border-bottom: none; }
+    .mail-body-row { grid-template-columns: 1fr; gap: 8px; }
+    .mail-body-row > label { padding-top: 0; }
+    .mail-body-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mail-baseline-select { min-width: 210px; padding: 6px 9px; border: 1.5px solid var(--line); border-radius: 6px; background: #fff; color: var(--text-sub); font: inherit; font-size: 12px; }
     .mail-row > label {
       font-size: 13px; font-weight: 600; color: var(--text-muted);
       padding-top: 8px; white-space: nowrap;
@@ -1820,14 +1798,12 @@
       background: #fff; outline: none; transition: border-color .15s; font-family: inherit;
     }
     .mail-input:focus { border-color: var(--navy2); }
-    .mail-textarea {
-      width: 100%; box-sizing: border-box;
-      border: 1.5px solid var(--line); border-radius: var(--radius-sm);
-      padding: 12px 14px; font-size: 13px; color: var(--navy);
-      background: #fff; outline: none; transition: border-color .15s;
-      font-family: inherit; resize: vertical; min-height: 260px; line-height: 1.8;
-    }
-    .mail-textarea:focus { border-color: var(--navy2); }
+    .mail-editor { background: #fff; border: 1.5px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+    .mail-editor:focus-within { border-color: var(--navy2); box-shadow: 0 0 0 3px rgba(37,99,168,.10); }
+    .mail-editor .ql-toolbar.ql-snow { border: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; background: var(--bg); font-family: inherit; }
+    .mail-editor .ql-container.ql-snow { border: 0; font-family: inherit; font-size: 14px; color: var(--text); }
+    .mail-editor .ql-editor { min-height: 260px; padding: 13px 14px; line-height: 1.8; }
+    .mail-editor .ql-editor.ql-blank::before { color: var(--text-muted); font-style: normal; left: 14px; right: 14px; }
     .mail-actions {
       display: flex; align-items: center; justify-content: space-between;
       padding-top: 20px; gap: 12px; flex-wrap: wrap;
@@ -1906,6 +1882,50 @@
     }
     .mail-send-mode.ejs { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
     .mail-send-mode.fallback { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+    .ejs-field .optional { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+
+    /* ===== 공통 버튼 시스템 =====
+       주요 실행 40px · 보조 작업 36px · 표/트리 조작 30px */
+    .btn,
+    .btn-save-final, .btn-add-member, .btn-mf-save, .btn-mail-send, .btn-ejs-save,
+    .btn-hist-reset, .btn-copy-text, .btn-mf-cancel, .btn-mail-reset, .btn-ejs-clear,
+    .tree-ctrl-bar button, .hist-actions button, .btn-m-edit, .btn-m-del {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      box-sizing: border-box; font-family: inherit; font-weight: 700; line-height: 1;
+      cursor: pointer; white-space: nowrap; text-decoration: none;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+    }
+    .btn:focus-visible,
+    .btn-save-final:focus-visible, .btn-add-member:focus-visible, .btn-mf-save:focus-visible, .btn-mail-send:focus-visible, .btn-ejs-save:focus-visible,
+    .btn-hist-reset:focus-visible, .btn-copy-text:focus-visible, .btn-mf-cancel:focus-visible, .btn-mail-reset:focus-visible, .btn-ejs-clear:focus-visible,
+    .tree-ctrl-bar button:focus-visible, .hist-actions button:focus-visible, .btn-m-edit:focus-visible, .btn-m-del:focus-visible {
+      outline: 0; box-shadow: 0 0 0 3px rgba(37, 99, 168, .22);
+    }
+    .btn-save-final, .btn-add-member, .btn-mf-save, .btn-mail-send, .btn-ejs-save, .btn.btn-primary {
+      min-height: 40px; padding: 0 17px; border-radius: 8px; font-size: 13px;
+    }
+    .btn-save-final:hover, .btn-add-member:hover, .btn-mf-save:hover, .btn-mail-send:hover, .btn-ejs-save:hover, .btn.btn-primary:hover {
+      opacity: 1; transform: translateY(-1px); box-shadow: 0 5px 12px rgba(27, 63, 106, .18);
+    }
+    .btn-hist-reset, .btn-copy-text, .btn-mf-cancel, .btn-mail-reset, .btn-ejs-clear, .btn.btn-ghost {
+      min-height: 36px; padding: 0 13px; border-radius: 8px; font-size: 12.5px;
+    }
+    .btn-hist-reset:hover, .btn-copy-text:hover, .btn-mf-cancel:hover, .btn-mail-reset:hover, .btn-ejs-clear:hover, .btn.btn-ghost:hover,
+    .tree-ctrl-bar button:hover, .hist-actions button:hover, .btn-m-edit:hover, .btn-m-del:hover {
+      opacity: 1; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(27, 63, 106, .10);
+    }
+    .tree-ctrl-bar button, .hist-actions button, .btn-m-edit, .btn-m-del {
+      min-height: 30px; padding: 0 10px; border-radius: 7px; font-size: 11.5px;
+    }
+    .btn-save-final:active, .btn-add-member:active, .btn-mf-save:active, .btn-mail-send:active, .btn-ejs-save:active,
+    .btn-hist-reset:active, .btn-copy-text:active, .btn-mf-cancel:active, .btn-mail-reset:active, .btn-ejs-clear:active,
+    .tree-ctrl-bar button:active, .hist-actions button:active, .btn-m-edit:active, .btn-m-del:active, .btn:active { transform: translateY(0); box-shadow: none; }
+    .btn.btn-primary { background: var(--navy2); color: #fff; border: 1px solid var(--navy2); }
+    .btn.btn-ghost { background: var(--bg2); color: var(--text-sub); border: 1.5px solid var(--line); }
+    .auth-card-btns .btn { min-height: 40px; }
+    .btn:disabled, .btn-save-final:disabled, .btn-add-member:disabled, .btn-mf-save:disabled, .btn-mail-send:disabled, .btn-ejs-save:disabled,
+    .btn-hist-reset:disabled, .btn-copy-text:disabled, .btn-mf-cancel:disabled, .btn-mail-reset:disabled, .btn-ejs-clear:disabled,
+    .tree-ctrl-bar button:disabled, .hist-actions button:disabled, .btn-m-edit:disabled, .btn-m-del:disabled { opacity: .48; cursor: not-allowed; transform: none; box-shadow: none; }
   </style>
 </head>
 
@@ -2004,21 +2024,23 @@
   <div class="main">
 
     <div class="topbar">
-      <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 열기/닫기">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
-      <div class="topbar-left">
-        <h1>PMS·SRM 재구축 용역 — WBS 일정 분석</h1>
-        <div class="sub">상세일정계획 WBS 기준, 공정율과 지연 업무를 자동 분석합니다. <span class="src-tag" id="srcTag">기본 데이터:
-            20260602_상세일정계획_WBS</span></div>
+      <div class="topbar-title-group">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 열기/닫기">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div class="topbar-left">
+          <h1>PMS·SRM 재구축 용역 — WBS 일정 분석</h1>
+          <div class="sub">상세일정계획 WBS 기준, 공정율과 지연 업무를 자동 분석합니다. <span class="src-tag" id="srcTag">기본 데이터:
+              20260602_상세일정계획_WBS</span></div>
+        </div>
       </div>
       <div class="today-box">
         <div>
-          <div class="d-label">기준일 TODAY</div>
+          <div class="d-label">기준일</div>
           <div class="d-value" id="todayLabel">-</div>
         </div>
         <div class="today-sep"></div>
@@ -2529,15 +2551,16 @@
           </div>
           <div class="ejs-panel-body">
             <div class="ejs-guide">
-              <strong>EmailJS를 사용하면 GitHub Pages에서도 실제 메일을 직접 발송할 수 있습니다.</strong>
+              <strong>GitHub Pages 배포 시에는 저장소의 <code>emailjs.config.js</code>에 설정을 입력하면 모든 사용자가 실제 메일을 발송할 수 있습니다.</strong>
               <ol>
                 <li><a href="https://www.emailjs.com" target="_blank">emailjs.com</a> 에서 무료 가입 (월 200건 무료)</li>
                 <li><b>Email Services</b> 탭 → Add New Service → Naver / Gmail 선택 후 SMTP 연결</li>
                 <li><b>Email Templates</b> 탭 → Create New Template, 아래 변수 사용:<br>
-                  To: <code>{{to_email}}</code> · CC: <code>{{cc_email}}</code> · Subject: <code>{{subject}}</code> · Body: <code>{{message}}</code> · Reply-to: <code>{{reply_to}}</code>
+                  To: <code>{{to_email}}</code> · CC: <code>{{cc_email}}</code> · Subject: <code>{{subject}}</code> · Body: <code>{{message}}</code> · Reply-to: <code>{{reply_to}}</code><br>
+                  <span style="color:var(--text-sub)">서식 포함 본문을 쓰려면 Body에 <code>{{{message_html}}}</code>를 사용하세요.</span>
                 </li>
                 <li><b>Account → API Keys</b>에서 <b>Public Key</b> 복사</li>
-                <li>아래 세 값을 입력하고 <b>저장</b>을 누르세요.</li>
+                <li>배포용 설정 파일을 채우기 전에는 Public Key·Service ID·Template ID를 입력하고 <b>이 브라우저에 저장</b>을 누르세요. 발신 표시명과 회신 이메일은 선택 항목입니다.</li>
               </ol>
             </div>
             <div class="ejs-fields">
@@ -2553,10 +2576,18 @@
                 <label>Template ID</label>
                 <input type="text" id="ejsTemplateId" placeholder="예) template_xxxxxxx">
               </div>
+              <div class="ejs-field">
+                <label>발신 표시명 <span class="optional">(선택)</span></label>
+                <input type="text" id="ejsFromName" placeholder="예) PMS·SRM 일정관리">
+              </div>
+              <div class="ejs-field">
+                <label>회신 이메일 <span class="optional">(선택)</span></label>
+                <input type="email" id="ejsReplyTo" placeholder="예) pm@example.com">
+              </div>
             </div>
             <div class="ejs-field-actions">
-              <button class="btn-ejs-save" onclick="saveEjsConfig()">저장</button>
-              <button class="btn-ejs-clear" onclick="clearEjsConfig()">설정 초기화</button>
+              <button class="btn-ejs-save" onclick="saveEjsConfig()">이 브라우저에 저장</button>
+              <button class="btn-ejs-clear" onclick="clearEjsConfig()">브라우저 설정 초기화</button>
             </div>
           </div>
         </div>
@@ -2566,8 +2597,8 @@
           <div class="mail-row">
             <label>보내는 사람</label>
             <div class="mail-from-box">
-              이희성
-              <span class="mail-from-addr">leehee43@naver.com</span>
+              <span id="mailFromName">프로젝트 일정관리</span>
+              <span class="mail-from-addr" id="mailFromAddr">EmailJS 연결 계정</span>
             </div>
           </div>
           <!-- 받는 사람 -->
@@ -2586,15 +2617,20 @@
             <input class="mail-input" type="text" id="mailSubject" placeholder="메일 제목을 입력하세요">
           </div>
           <!-- 내용 -->
-          <div class="mail-row">
-            <label>내용 <span style="color:var(--red)">*</span></label>
-            <textarea class="mail-textarea" id="mailBody" placeholder="메일 내용을 입력하세요"></textarea>
+          <div class="mail-row mail-body-row">
+            <div class="mail-body-heading">
+              <label>내용 <span style="color:var(--red)">*</span></label>
+              <select class="mail-baseline-select" id="mailBaselineSelect" onchange="fillMailBodyFromBaseline(this.value)">
+                <option value="current">기준일 선택 — 현재 분석</option>
+              </select>
+            </div>
+            <div class="mail-editor" id="mailBody"></div>
           </div>
         </div>
 
         <div class="mail-actions">
           <div id="mailSendModeNote" class="mail-actions-note">
-            ※ EmailJS 미설정 — 기기의 기본 메일 앱으로 발송됩니다.
+            ※ EmailJS 직접 발송을 위해 발송 설정을 완료하세요.
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn-mail-reset" onclick="resetMailForm()">초기화</button>
@@ -2613,19 +2649,34 @@
   </div>
 
   <!-- 비밀번호 모달 -->
-  <div id="authOverlay" class="auth-overlay" onclick="if(event.target===this)closeAuthModal()">
+  <div id="authOverlay" class="auth-overlay" onclick="if(event.target===this)closeAuthModal()" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <div class="auth-card">
-      <div class="auth-card-title">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        관리자 확인
+      <div class="auth-card-head">
+        <button class="auth-close" type="button" onclick="closeAuthModal()" aria-label="닫기">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <div class="auth-eyebrow"><span style="width:6px;height:6px;border-radius:50%;background:#6EE7B7"></span>ADMIN ONLY</div>
+        <div class="auth-card-title" id="authTitle">
+          <span class="auth-lock-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          관리자 접근 확인
+        </div>
+        <p class="auth-card-desc">구성원 관리와 메일 보내기 메뉴는 관리자 확인 후 이용할 수 있습니다.</p>
       </div>
-      <p class="auth-card-desc">이 메뉴는 관리자만 접근할 수 있습니다.</p>
-      <input type="password" id="authPwInput" placeholder="비밀번호" maxlength="20"
-             onkeydown="if(event.key==='Enter')submitAuth()">
-      <div id="authError" class="auth-card-error"></div>
-      <div class="auth-card-btns">
-        <button class="btn btn-ghost" onclick="closeAuthModal()">취소</button>
-        <button class="btn btn-primary" onclick="submitAuth()">확인</button>
+      <div class="auth-card-body">
+        <label class="auth-field-label" for="authPwInput">관리자 비밀번호</label>
+        <div class="auth-password-wrap">
+          <input type="password" id="authPwInput" placeholder="비밀번호를 입력하세요" maxlength="20" autocomplete="current-password"
+                 onkeydown="if(event.key==='Enter')submitAuth()" aria-describedby="authError">
+          <button class="auth-password-toggle" type="button" onclick="toggleAuthPassword()" aria-label="비밀번호 표시 전환" aria-pressed="false">
+            <svg id="authEyeIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
+          </button>
+        </div>
+        <div id="authError" class="auth-card-error" role="alert" aria-live="polite"></div>
+        <div class="auth-card-btns">
+          <button class="btn btn-ghost" type="button" onclick="closeAuthModal()">취소</button>
+          <button class="btn btn-primary" type="button" onclick="submitAuth()">접근하기</button>
+        </div>
+        <div class="auth-card-foot">ESC 키를 누르거나 바깥 영역을 클릭하면 닫을 수 있습니다.</div>
       </div>
     </div>
   </div>
@@ -2681,7 +2732,7 @@
     /* ===================== 렌더링 ===================== */
     function badgeHtml(st) { return `<span class="badge ${st}">${STATUS_LABEL[st]}</span>`; }
 
-    function taskRowHtml(t) {
+    function taskRowHtml(t, showPlanActual = false) {
       const st = taskStatus(t);
       const start = parseDate(t.start), end = parseDate(t.end);
       const dateLabel = (start && end) ? `${fmtShort(start)} ~ ${fmtShort(end)}` : '-';
@@ -2697,12 +2748,15 @@
       const actPart = t.activity ? `<span style="color:var(--text-sub);">${t.activity}</span>` : '';
       const delivPart = t.deliverable ? `<span class="m-tag" style="background:var(--bg);color:var(--text-muted);">산출물: ${t.deliverable}</span>` : '';
 
-      const hasDiff = ap !== undefined && ap !== t.progress;
+      const hasActual = ap !== undefined && ap !== null;
+      const hasDiff = hasActual && ap !== t.progress;
       let progressHtml;
-      if (hasDiff) {
-        const diff = ap - t.progress;
+      if (showPlanActual || hasDiff) {
+        const actualValue = hasActual ? ap : 0;
+        const diff = actualValue - t.progress;
         const gapClass = diff < 0 ? 'behind' : 'ahead';
         const gapStr = (diff > 0 ? '+' : '') + diff + '%p';
+        const gapBadge = hasActual ? `<span class="gap-badge ${gapClass}">${gapStr}</span>` : '<span class="gap-badge behind">실적 미입력</span>';
         progressHtml = `
     <div class="dual-bar-wrap">
       <div class="dual-bar-row">
@@ -2713,10 +2767,10 @@
       <div class="dual-bar-sep"></div>
       <div class="dual-bar-row">
         <span class="dual-bar-label">실적</span>
-        <div class="dual-bar-track"><div class="dual-bar-fill actual-fill" style="width:${ap}%"></div></div>
-        <span class="dual-bar-pct">${ap}%</span>
+        <div class="dual-bar-track"><div class="dual-bar-fill actual-fill" style="width:${actualValue}%"></div></div>
+        <span class="dual-bar-pct">${hasActual ? actualValue + '%' : '-'}</span>
       </div>
-      <span class="gap-badge ${gapClass}">${gapStr}</span>
+      ${gapBadge}
     </div>`;
       } else {
         progressHtml = `
@@ -2748,7 +2802,7 @@
       return map;
     }
 
-    function renderTaskGroup(container, list, emptyMsg, emptyGood) {
+    function renderTaskGroup(container, list, emptyMsg, emptyGood, showPlanActual = false) {
       if (list.length === 0) {
         container.innerHTML = `<div class="empty-msg ${emptyGood ? 'good' : ''}">${emptyMsg}</div>`;
         return;
@@ -2758,7 +2812,7 @@
       grouped.forEach((tasks, phase) => {
         html += `<div class="phase-group"><div class="phase-title">${phase}</div>`;
         tasks.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-        tasks.forEach(t => html += taskRowHtml(t));
+        tasks.forEach(t => html += taskRowHtml(t, showPlanActual));
         html += `</div>`;
       });
       container.innerHTML = html;
@@ -2772,6 +2826,22 @@
         const s = parseDate(t.start), e = parseDate(t.end);
         if (!s || !e) return false;
         return rangesOverlap(s, e, rangeStart, rangeEnd);
+      });
+    }
+
+    function getThisWeekWorkTasks(rangeStart, rangeEnd) {
+      return WBS_DATA.filter(t => {
+        const start = parseDate(t.start), end = parseDate(t.end);
+        if (!start || !end) return false;
+
+        // 완료 업무는 실제 완료일(없으면 계획 완료일)을 기준으로 금주 실적으로 포함합니다.
+        if (isDone(t)) {
+          const completedOn = parseDate(t.actual_end) || end;
+          return completedOn >= rangeStart && completedOn <= rangeEnd;
+        }
+
+        // 미완료 업무는 금주 일정과 겹치면서 이미 시작된 진행·지연 업무만 포함합니다.
+        return taskStatus(t) !== 'upcoming' && rangesOverlap(start, end, rangeStart, rangeEnd);
       });
     }
 
@@ -3007,15 +3077,15 @@
       ['thisWeekRangeLabel', 'thisWeekRangeLabel2'].forEach(id => document.getElementById(id).textContent = thisLabel);
       ['nextWeekRangeLabel', 'nextWeekRangeLabel2'].forEach(id => document.getElementById(id).textContent = nextLabel);
 
-      const thisWeekTasks = getTasksInRange(wMon, wSun, true);   // 금주: 진행중·지연만
+      const thisWeekTasks = getThisWeekWorkTasks(wMon, wSun);     // 금주: 완료·진행·지연 업무 전체
       const nextWeekTasks = getTasksInRange(nMon, nSun);          // 차주: 예정 포함
       const delayTasks = getDelayTasks();
 
-      renderTaskGroup(document.getElementById('thisWeekList'), thisWeekTasks, '이번 주에 진행할 TASK가 없습니다.');
+      renderTaskGroup(document.getElementById('thisWeekList'), thisWeekTasks, '이번 주에 진행한 TASK가 없습니다.', false, true);
       renderTaskGroup(document.getElementById('nextWeekList'), nextWeekTasks, '다음 주에 예정된 TASK가 없습니다.');
       renderTaskGroup(document.getElementById('delayList'), delayTasks, '현재 지연된 TASK가 없습니다. 계획대로 진행 중입니다.', true);
 
-      renderDashboardPreview(document.getElementById('dashThisPreview'), thisWeekTasks, 4, '이번 주에 진행할 TASK가 없습니다.');
+      renderDashboardPreview(document.getElementById('dashThisPreview'), thisWeekTasks, 4, '이번 주에 진행한 TASK가 없습니다.');
       renderDashboardPreview(document.getElementById('dashNextPreview'), nextWeekTasks, 4, '다음 주에 예정된 TASK가 없습니다.');
       renderDashboardPreview(document.getElementById('dashDelayPreview'), delayTasks, 4, '현재 지연된 TASK가 없습니다. 계획대로 진행 중입니다.', (a, b) => delayDays(b) - delayDays(a));
 
@@ -3086,8 +3156,11 @@
       _pendingPage = pageId;
       document.getElementById('authOverlay').classList.add('open');
       const inp = document.getElementById('authPwInput');
+      inp.type = 'password';
       inp.value = '';
-      document.getElementById('authError').textContent = '';
+      const error = document.getElementById('authError');
+      error.textContent = '';
+      error.classList.remove('show');
       setTimeout(() => inp.focus(), 80);
     }
 
@@ -3098,7 +3171,9 @@
         closeAuthModal();
         navigateTo(_pendingPage);
       } else {
-        document.getElementById('authError').textContent = '비밀번호가 올바르지 않습니다.';
+        const error = document.getElementById('authError');
+        error.textContent = '비밀번호가 올바르지 않습니다. 다시 입력해 주세요.';
+        error.classList.add('show');
         const inp = document.getElementById('authPwInput');
         inp.value = '';
         inp.focus();
@@ -3108,6 +3183,20 @@
     function closeAuthModal() {
       document.getElementById('authOverlay').classList.remove('open');
     }
+
+    function toggleAuthPassword() {
+      const input = document.getElementById('authPwInput');
+      const button = document.querySelector('.auth-password-toggle');
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      button.setAttribute('aria-pressed', String(show));
+      button.setAttribute('aria-label', show ? '비밀번호 숨기기' : '비밀번호 표시');
+      input.focus();
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && document.getElementById('authOverlay').classList.contains('open')) closeAuthModal();
+    });
 
     function navigateTo(pageId) {
       document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
@@ -3145,8 +3234,78 @@
     /* ===================== 메일 보내기 ===================== */
     const _mailTo = new Set();
     const _mailCc = new Set();
+    let mailEditor = null;
+
+    function ensureMailEditor() {
+      if (mailEditor) return mailEditor;
+      const editorEl = document.getElementById('mailBody');
+      if (!editorEl || !window.Quill) return null;
+      mailEditor = new Quill(editorEl, {
+        theme: 'snow',
+        placeholder: '메일 내용을 입력하세요',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: [] }, { background: [] }],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ align: [] }],
+            ['link', 'clean']
+          ]
+        }
+      });
+      return mailEditor;
+    }
+
+    function getMailBody() {
+      const editor = ensureMailEditor();
+      if (!editor) return { text: '', html: '' };
+      return {
+        text: editor.getText().trim(),
+        html: editor.root.innerHTML
+      };
+    }
+
+    function focusMailEditor() {
+      const editor = ensureMailEditor();
+      if (editor) editor.focus();
+    }
+
+    function populateMailBaselineSelect() {
+      const select = document.getElementById('mailBaselineSelect');
+      if (!select) return;
+      const selected = select.value || 'current';
+      dbGetAll().then(all => {
+        const records = [...all].sort((a, b) => b.wbsDate.localeCompare(a.wbsDate));
+        select.innerHTML = '<option value="current">기준일 선택 — 현재 분석 (' + fmt(TODAY) + ')</option>' +
+          records.map(r => `<option value="${r.id}">${r.wbsDate} · ${r.fileName}</option>`).join('');
+        select.value = [...select.options].some(o => o.value === selected) ? selected : 'current';
+      });
+    }
+
+    function fillMailBodyFromBaseline(value) {
+      const editor = ensureMailEditor();
+      if (!editor) { showToast('본문 에디터를 불러오지 못했습니다. 네트워크 연결을 확인하세요.', 'err'); return; }
+      if (value === 'current') {
+        const text = buildNextWeekText(WBS_DATA, TODAY, CURRENT_SOURCE_NAME);
+        if (!text) { showToast('현재 분석 결과에 복사할 업무가 없습니다.', ''); return; }
+        editor.setText(text);
+        showToast(`기준일 ${fmt(TODAY)}의 업무 텍스트를 본문에 넣었습니다.`, 'ok');
+        return;
+      }
+      dbGet(Number(value)).then(record => {
+        if (!record) { showToast('선택한 분석 결과를 찾을 수 없습니다.', 'err'); return; }
+        const baseline = startOfDay(parseDate(record.wbsDate));
+        const text = buildNextWeekText(record.tasks, baseline, record.fileName);
+        if (!text) { showToast('선택한 기준일에 복사할 업무가 없습니다.', ''); return; }
+        editor.setText(text);
+        showToast(`기준일 ${record.wbsDate}의 업무 텍스트를 본문에 넣었습니다.`, 'ok');
+      }).catch(err => showToast('분석 결과 불러오기 오류: ' + err.message, 'err'));
+    }
 
     function renderMailPage() {
+      ensureMailEditor();
+      populateMailBaselineSelect();
       renderEjsStatus();
       mdbGetAll().then(members => {
         _mailTo.clear();
@@ -3186,34 +3345,62 @@
 
     /* --- EmailJS 설정 관리 --- */
     function getEjsConfig() {
+      // emailjs.config.js는 GitHub Pages 배포용 공통 설정입니다.
+      // 값이 모두 있으면 로컬 설정보다 우선하여 모든 방문자에게 동일하게 적용합니다.
+      const deployed = window.WBS_EMAILJS_CONFIG || {};
+      const local = {
+        publicKey:  localStorage.getItem('ejs_pub') || '',
+        serviceId:  localStorage.getItem('ejs_svc') || '',
+        templateId: localStorage.getItem('ejs_tpl') || '',
+        fromName:   localStorage.getItem('ejs_from_name') || '',
+        replyTo:    localStorage.getItem('ejs_reply_to') || ''
+      };
+      const isDeployed = !!(deployed.publicKey && deployed.serviceId && deployed.templateId);
+      const source = isDeployed ? deployed : local;
       return {
-        publicKey:  localStorage.getItem('ejs_pub')  || '',
-        serviceId:  localStorage.getItem('ejs_svc')  || '',
-        templateId: localStorage.getItem('ejs_tpl')  || '',
+        publicKey: source.publicKey || '',
+        serviceId: source.serviceId || '',
+        templateId: source.templateId || '',
+        fromName: source.fromName || '프로젝트 일정관리',
+        replyTo: source.replyTo || '',
+        source: isDeployed ? 'deployment' : 'browser'
       };
     }
     function isEjsConfigured() {
       const c = getEjsConfig();
+      // EmailJS 발송에 필수인 값은 공개 키·서비스 ID·템플릿 ID뿐입니다.
+      // 발신 표시명과 회신 주소는 템플릿에서 선택적으로 사용할 수 있으므로,
+      // 이전 버전에서 저장한 3개 항목 설정도 계속 사용할 수 있게 둡니다.
       return !!(c.publicKey && c.serviceId && c.templateId);
+    }
+    function isValidEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
     }
     function saveEjsConfig() {
       const pub = document.getElementById('ejsPublicKey').value.trim();
       const svc = document.getElementById('ejsServiceId').value.trim();
       const tpl = document.getElementById('ejsTemplateId').value.trim();
-      if (!pub || !svc || !tpl) { showToast('세 항목을 모두 입력하세요.', 'err'); return; }
+      const fromName = document.getElementById('ejsFromName').value.trim();
+      const replyTo = document.getElementById('ejsReplyTo').value.trim();
+      if (!pub || !svc || !tpl) { showToast('Public Key, Service ID, Template ID를 모두 입력하세요.', 'err'); return; }
+      if (replyTo && !isValidEmail(replyTo)) { showToast('회신 이메일 형식을 확인하세요.', 'err'); document.getElementById('ejsReplyTo').focus(); return; }
       localStorage.setItem('ejs_pub', pub);
       localStorage.setItem('ejs_svc', svc);
       localStorage.setItem('ejs_tpl', tpl);
+      localStorage.setItem('ejs_from_name', fromName);
+      localStorage.setItem('ejs_reply_to', replyTo);
       renderEjsStatus();
       document.getElementById('ejsPanel').classList.remove('open');
       showToast('EmailJS 설정이 저장되었습니다.', 'ok');
     }
     function clearEjsConfig() {
       if (!confirm('EmailJS 설정을 초기화하시겠습니까?')) return;
-      ['ejs_pub','ejs_svc','ejs_tpl'].forEach(k => localStorage.removeItem(k));
+      ['ejs_pub','ejs_svc','ejs_tpl','ejs_from_name','ejs_reply_to'].forEach(k => localStorage.removeItem(k));
       document.getElementById('ejsPublicKey').value  = '';
       document.getElementById('ejsServiceId').value  = '';
       document.getElementById('ejsTemplateId').value = '';
+      document.getElementById('ejsFromName').value   = '';
+      document.getElementById('ejsReplyTo').value    = '';
       renderEjsStatus();
       showToast('설정이 초기화되었습니다.', '');
     }
@@ -3223,19 +3410,26 @@
       const note  = document.getElementById('mailSendModeNote');
       if (badge) {
         badge.className = 'ejs-status-badge ' + (ok ? 'ok' : 'warn');
-        badge.textContent = ok ? '설정 완료 — EmailJS 직접 발송' : '미설정 — 메일 앱으로 대체 발송';
+        const cfg = getEjsConfig();
+        badge.textContent = ok
+          ? (cfg.source === 'deployment' ? '배포 설정 완료 — EmailJS 직접 발송' : '브라우저 설정 완료 — EmailJS 직접 발송')
+          : '미설정 — 메일 앱으로 대체 발송';
       }
       if (note) {
         note.textContent = ok
           ? '※ EmailJS를 통해 직접 발송됩니다.'
           : '※ EmailJS 미설정 — 기기의 기본 메일 앱으로 발송됩니다.';
       }
-      if (ok) {
-        const cfg = getEjsConfig();
-        document.getElementById('ejsPublicKey').value  = cfg.publicKey;
-        document.getElementById('ejsServiceId').value  = cfg.serviceId;
-        document.getElementById('ejsTemplateId').value = cfg.templateId;
-      }
+      const cfg = getEjsConfig();
+      document.getElementById('ejsPublicKey').value  = cfg.publicKey;
+      document.getElementById('ejsServiceId').value  = cfg.serviceId;
+      document.getElementById('ejsTemplateId').value = cfg.templateId;
+      document.getElementById('ejsFromName').value   = cfg.fromName;
+      document.getElementById('ejsReplyTo').value    = cfg.replyTo;
+      const fromName = document.getElementById('mailFromName');
+      const fromAddr = document.getElementById('mailFromAddr');
+      if (fromName) fromName.textContent = cfg.fromName;
+      if (fromAddr) fromAddr.textContent = cfg.replyTo || '회신 이메일 미설정';
     }
     function toggleEjsPanel() {
       document.getElementById('ejsPanel').classList.toggle('open');
@@ -3245,46 +3439,69 @@
     function sendMail() {
       if (_mailTo.size === 0) { showToast('받는 사람을 선택하세요.', 'err'); return; }
       const subject = document.getElementById('mailSubject').value.trim();
-      const body    = document.getElementById('mailBody').value.trim();
+      const body = getMailBody();
       if (!subject) { showToast('제목을 입력하세요.', 'err'); document.getElementById('mailSubject').focus(); return; }
-      if (!body)    { showToast('내용을 입력하세요.', 'err'); document.getElementById('mailBody').focus(); return; }
+      if (!body.text) { showToast('내용을 입력하세요.', 'err'); focusMailEditor(); return; }
 
       mdbGetAll().then(members => {
         const toEmails = [..._mailTo].map(id => members.find(m => m.id === id)?.email).filter(Boolean);
-        const ccEmails = [..._mailCc].map(id => members.find(m => m.id === id)?.email).filter(Boolean);
+        const ccEmails = [..._mailCc].map(id => members.find(m => m.id === id)?.email)
+          .filter(email => email && !toEmails.includes(email));
+        if (toEmails.length === 0) { showToast('유효한 받는 사람 이메일이 없습니다.', 'err'); return; }
         if (isEjsConfigured()) {
-          sendViaEmailJS(toEmails, ccEmails, subject, body);
+          sendViaEmailJS(toEmails, ccEmails, subject, body.text, body.html);
         } else {
-          sendViaMailto(toEmails, ccEmails, subject, body);
+          sendViaMailto(toEmails, ccEmails, subject, body.text);
         }
       });
     }
 
-    function sendViaEmailJS(toEmails, ccEmails, subject, body) {
+    function sendViaEmailJS(toEmails, ccEmails, subject, body, bodyHtml) {
       const cfg = getEjsConfig();
+      if (!window.emailjs) {
+        showToast('EmailJS 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인하세요.', 'err');
+        return;
+      }
       const btn = document.querySelector('.btn-mail-send');
       const origHTML = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 발송 중...';
 
-      emailjs.init({ publicKey: cfg.publicKey });
-      emailjs.send(cfg.serviceId, cfg.templateId, {
-        to_email:  toEmails.join(', '),
-        cc_email:  ccEmails.join(', '),
-        from_name: '이희성',
-        reply_to:  'leehee43@naver.com',
-        subject:   subject,
-        message:   body,
+      // init/send가 동기 예외를 내도 발송 버튼이 비활성 상태로 남지 않게 Promise로 감쌉니다.
+      Promise.resolve().then(() => {
+        emailjs.init({ publicKey: cfg.publicKey });
+        return emailjs.send(cfg.serviceId, cfg.templateId, {
+          to_email:  toEmails.join(', '),
+          cc_email:  ccEmails.join(', '),
+          from_name: cfg.fromName,
+          reply_to:  cfg.replyTo,
+          subject:   subject,
+          message:   body,
+          message_html: bodyHtml,
+          sent_at: new Date().toLocaleString('ko-KR'),
+          page_url: window.location.href
+        });
       }).then(() => {
         showToast('메일이 성공적으로 발송되었습니다.', 'ok');
         resetMailForm();
       }).catch(err => {
-        const msg = (err && err.text) ? err.text : (err && err.message) ? err.message : JSON.stringify(err);
-        showToast('발송 실패: ' + msg, 'err');
+        showToast('발송 실패: ' + getEmailJsErrorMessage(err), 'err');
       }).finally(() => {
         btn.disabled = false;
         btn.innerHTML = origHTML;
       });
+    }
+
+    function getEmailJsErrorMessage(err) {
+      const raw = String((err && (err.text || err.message)) || JSON.stringify(err) || '알 수 없는 오류');
+      const msg = raw.toLowerCase();
+      if (msg.includes('origin') || msg.includes('domain') || msg.includes('block')) {
+        return '도메인이 허용되지 않았습니다. EmailJS에 현재 주소(localhost 또는 GitHub Pages)를 허용 도메인으로 등록하세요.';
+      }
+      if (msg.includes('public key') || msg.includes('service') || msg.includes('template') || msg.includes('not found')) {
+        return 'EmailJS Public Key, Service ID, Template ID와 템플릿 상태를 확인하세요.';
+      }
+      return raw;
     }
 
     function sendViaMailto(toEmails, ccEmails, subject, body) {
@@ -3306,7 +3523,8 @@
       document.querySelectorAll('#mailToChips .mail-chip, #mailCcChips .mail-chip')
         .forEach(el => el.classList.remove('selected'));
       document.getElementById('mailSubject').value = '';
-      document.getElementById('mailBody').value    = '';
+      const editor = ensureMailEditor();
+      if (editor) editor.setText('');
     }
 
     /* ===================== 엑셀 업로드 / 파싱 ===================== */
@@ -3806,11 +4024,14 @@
           const gapColor = gap < -0.5 ? 'c-red' : (gap > 0.5 ? 'c-green' : '');
           html += `
 <div class="hist-card${isActive ? ' active-snapshot' : ''}">
-  <div class="hist-card-top">
+  <div class="hist-date-block">
     <div class="hist-wbs-date">${r.wbsDate}<small>기준일</small></div>
     <span class="hist-active-badge">현재 분석 중</span>
   </div>
-  <div class="hist-filename" title="${r.fileName}">📎 ${r.fileName}</div>
+  <div class="hist-file-block">
+    <div class="hist-filename" title="${r.fileName}">📎 ${r.fileName}</div>
+    <div class="hist-saved-at">저장: ${fmtSavedAt(r.savedAt)}</div>
+  </div>
   <div class="hist-stats">
     <div class="hs-item"><div class="hs-label">전체 TASK</div><div class="hs-value">${s.total}</div></div>
     <div class="hs-item"><div class="hs-label">완료</div><div class="hs-value c-green">${s.done}</div></div>
@@ -3820,7 +4041,6 @@
     <div class="hs-item"><div class="hs-label">Gap</div><div class="hs-value ${gapColor}">${gapStr}</div></div>
   </div>
   <div class="hist-footer">
-    <div class="hist-saved-at">저장: ${fmtSavedAt(r.savedAt)}</div>
     <div class="hist-actions">
       <button class="btn-restore" onclick="restoreAnalysis(${r.id})">불러오기</button>
       <button class="btn-link" onclick="copyAnalysisLink(${r.id})">링크 복사</button>
@@ -3844,42 +4064,101 @@
       } catch(e) {}
     }
 
-    function copyNextWeekText() {
-      const [nMon, nSun] = getWeekRange(addDays(TODAY, 7));
-      const tasks = getTasksInRange(nMon, nSun);
-      if (tasks.length === 0) { showToast('차주 할 일이 없습니다.', ''); return; }
+    function buildNextWeekText(data, baseline, sourceName) {
+      const taskDelayDays = t => {
+        const end = parseDate(t.end);
+        if (!end || isDone(t)) return 0;
+        return Math.max(0, Math.round((baseline - end) / 86400000));
+      };
+      const isInProgress = t => {
+        const start = parseDate(t.start), end = parseDate(t.end);
+        return !isDone(t) && start && start <= baseline && (!end || end >= baseline);
+      };
+      const taskStatusFor = t => {
+        if (isDone(t)) return 'done';
+        if (taskDelayDays(t) > 0) return 'delay';
+        return isInProgress(t) ? 'progress' : 'upcoming';
+      };
+      const delayTasks = data.filter(t => !isDone(t) && (taskDelayDays(t) > 0 || (isInProgress(t) && hasProgressGap(t))))
+        .sort((a, b) => taskDelayDays(b) - taskDelayDays(a) || ((b.progress - (b.actualProgress ?? b.progress)) - (a.progress - (a.actualProgress ?? a.progress))));
+      const [nMon, nSun] = getWeekRange(addDays(baseline, 7));
+      const tasks = data.filter(t => {
+        if (isDone(t)) return false;
+        const start = parseDate(t.start), end = parseDate(t.end);
+        return start && end && rangesOverlap(start, end, nMon, nSun);
+      });
+      if (tasks.length === 0 && delayTasks.length === 0) return '';
 
       const rangeStr = `${fmt(nMon)} ~ ${fmt(nSun)}`;
-      const DAY = ['일','월','화','수','목','금','토'];
       const lines = [];
+      lines.push(`[금주의 지연 업무] 기준일 ${fmt(baseline)}`);
+      lines.push('');
+
+      if (delayTasks.length === 0) {
+        lines.push('지연 업무가 없습니다.');
+      } else {
+        let lastDelayPhase = '', lastDelayAct = '';
+        delayTasks.forEach((t, i) => {
+          if (t.phase && t.phase !== lastDelayPhase) {
+            lines.push(`▣ ${t.phase}`);
+            lastDelayPhase = t.phase; lastDelayAct = '';
+          }
+          if (t.activity && t.activity !== lastDelayAct) {
+            lines.push(`  ◆ ${t.activity}`);
+            lastDelayAct = t.activity;
+          }
+          const dd = taskDelayDays(t);
+          const gap = t.actualProgress != null ? t.progress - t.actualProgress : 0;
+          const issue = dd > 0 ? `${dd}일 지연` : `실적 ${gap}%p 미달`;
+          const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
+          const ap = t.actualProgress != null ? ` / 실적 ${t.actualProgress}%` : '';
+          const start = t.start ? ` ${t.start}` : '';
+          const end = t.end ? ` ~ ${t.end}` : '';
+          lines.push(`    ${i + 1}. [${issue}] ${t.task}${pct}${ap} |${start}${end}`);
+        });
+      }
+
+      lines.push('');
       lines.push(`[차주 할 일] ${rangeStr}`);
       lines.push('');
 
-      let lastPhase = '', lastAct = '';
-      tasks.forEach((t, i) => {
-        if (t.phase && t.phase !== lastPhase) {
-          lines.push(`▣ ${t.phase}`);
-          lastPhase = t.phase; lastAct = '';
-        }
-        if (t.activity && t.activity !== lastAct) {
-          lines.push(`  ◆ ${t.activity}`);
-          lastAct = t.activity;
-        }
-        const st = STATUS_LABEL[taskStatus(t)] || '';
-        const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
-        const ap  = t.actualProgress != null && t.actualProgress !== t.progress
-          ? ` / 실적 ${t.actualProgress}%` : '';
-        const start = t.start ? ` ${t.start}` : '';
-        const end   = t.end   ? ` ~ ${t.end}` : '';
-        lines.push(`    ${i + 1}. [${st}] ${t.task}${pct}${ap} |${start}${end}`);
-      });
+      if (tasks.length === 0) {
+        lines.push('다음 주에 예정된 TASK가 없습니다.');
+      } else {
+        let lastPhase = '', lastAct = '';
+        tasks.forEach((t, i) => {
+          if (t.phase && t.phase !== lastPhase) {
+            lines.push(`▣ ${t.phase}`);
+            lastPhase = t.phase; lastAct = '';
+          }
+          if (t.activity && t.activity !== lastAct) {
+            lines.push(`  ◆ ${t.activity}`);
+            lastAct = t.activity;
+          }
+          const st = STATUS_LABEL[taskStatusFor(t)] || '';
+          const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
+          const ap  = t.actualProgress != null && t.actualProgress !== t.progress
+            ? ` / 실적 ${t.actualProgress}%` : '';
+          const start = t.start ? ` ${t.start}` : '';
+          const end   = t.end   ? ` ~ ${t.end}` : '';
+          lines.push(`    ${i + 1}. [${st}] ${t.task}${pct}${ap} |${start}${end}`);
+        });
+      }
 
       lines.push('');
-      lines.push(`※ 기준일: ${fmt(TODAY)} / 출처: ${CURRENT_SOURCE_NAME}`);
+      lines.push(`※ 기준일: ${fmt(baseline)} / 출처: ${sourceName}`);
+      return lines.join('\n');
+    }
 
-      const text = lines.join('\n');
+    function copyNextWeekText() {
+      const text = buildNextWeekText(WBS_DATA, TODAY, CURRENT_SOURCE_NAME);
+      if (!text) { showToast('복사할 차주 할 일 또는 지연 업무가 없습니다.', ''); return; }
+      const [nMon, nSun] = getWeekRange(addDays(TODAY, 7));
+      const tasks = getTasksInRange(nMon, nSun);
+      const delayTasks = getDelayTasks();
+
       navigator.clipboard.writeText(text)
-        .then(() => showToast(`차주 할 일 ${tasks.length}건 복사 완료`, 'ok'))
+        .then(() => showToast(`지연 업무 ${delayTasks.length}건 · 차주 할 일 ${tasks.length}건 복사 완료`, 'ok'))
         .catch(() => { prompt('아래 내용을 복사하세요:', text); });
     }
 
@@ -3957,11 +4236,6 @@
     document.getElementById('btnSaveFinal').addEventListener('click', saveCurrentAnalysis);
 
     /* ===================== 초기 실행 ===================== */
-    if (!localStorage.getItem('ejs_pub')) {
-      localStorage.setItem('ejs_pub', 'TPuULBn-0jwemw9wO');
-      localStorage.setItem('ejs_svc', 'service_qoookg3');
-      localStorage.setItem('ejs_tpl', 'template_bhjqsx9');
-    }
     initFilters();
     renderAll();
     initDB().then(() => {
@@ -3971,8 +4245,21 @@
       const initId = new URLSearchParams(window.location.search).get('id');
       if (initId) {
         restoreAnalysis(Number(initId));
-      } else if (WBS_DATA.length === 0) {
-        navigateTo('p-upload');
+      } else {
+        // 최초 진입 시에는 저장된 WBS 중 Today(기준일)가 가장 최근인 파일을 기본으로 불러옵니다.
+        // 같은 기준일이 여러 건이면 가장 나중에 저장한 파일을 선택합니다.
+        dbGetAll().then(all => {
+          const latest = all
+            .filter(r => r.wbsDate && parseDate(r.wbsDate))
+            .sort((a, b) => {
+              const byWbsDate = b.wbsDate.localeCompare(a.wbsDate);
+              return byWbsDate || String(b.savedAt || '').localeCompare(String(a.savedAt || ''));
+            })[0];
+          if (latest) restoreAnalysis(latest.id);
+          else if (WBS_DATA.length === 0) navigateTo('p-upload');
+        }).catch(() => {
+          if (WBS_DATA.length === 0) navigateTo('p-upload');
+        });
       }
     }).catch(() => {
       if (WBS_DATA.length === 0) navigateTo('p-upload');
