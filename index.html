@@ -2812,40 +2812,40 @@
     }
 
     function getCombinedHistoryList() {
-      return dbGetAll().then(localList => {
-        const client = getSupabaseClient();
-        if (!client) return localList;
-        
-        return client.from('wbs_analyses').select('id, saved_at, wbs_date, file_name, summary').order('id', { ascending: false })
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Supabase select error:", error);
-              return localList;
-            }
-            
-            const cloudList = (data || []).map(row => ({
-              id: row.id,
-              savedAt: row.saved_at,
-              wbsDate: row.wbs_date,
-              fileName: row.file_name,
-              summary: row.summary
-            }));
-            
-            const mergedMap = new Map();
-            localList.forEach(r => mergedMap.set(r.id, r));
+      const client = getSupabaseClient();
+      if (!client) {
+        return dbGetAll();
+      }
+      
+      return client.from('wbs_analyses').select('id, saved_at, wbs_date, file_name, summary').order('id', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("Supabase select error:", error);
+            return dbGetAll();
+          }
+          
+          const cloudList = (data || []).map(row => ({
+            id: row.id,
+            savedAt: row.saved_at,
+            wbsDate: row.wbs_date,
+            fileName: row.file_name,
+            summary: row.summary
+          }));
+          
+          return dbGetAll().then(localList => {
+            const localMap = new Map(localList.map(r => [r.id, r]));
             cloudList.forEach(r => {
-              const localRec = mergedMap.get(r.id);
+              const localRec = localMap.get(r.id);
               if (localRec && localRec.fileData) {
                 r.fileData = localRec.fileData;
                 r.tasks = localRec.tasks;
               }
-              mergedMap.set(r.id, r);
             });
-            
-            return Array.from(mergedMap.values()).sort((a, b) => b.id - a.id);
+            return cloudList;
           });
-      });
+        });
     }
+
 
     /* ===================== 날짜 유틸 ===================== */
     function parseDate(s) { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
