@@ -2780,62 +2780,62 @@
 
     // Legacy Storage implementation retained for backwards compatibility; new saves do not call it.
     function supabaseAddOrUpdateLegacy(record, existingId = null) {
-      const client = getSupabaseClient();
-      if (!client) return Promise.reject(new Error("Supabase not connected"));
-
-      const bucketName = 'wbs-files';
-      const filePath = `${record.wbsDate}/${record.fileName}`;
-      const storageUri = `storage://${bucketName}/${filePath}`;
-
-      let uploadPromise = Promise.resolve(storageUri);
-
-      if (record.fileData) {
-        const blob = new Blob([record.fileData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        uploadPromise = client.storage
-          .from(bucketName)
-          .upload(filePath, blob, {
-            cacheControl: '3600',
-            upsert: true
-          })
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Supabase Storage upload error:", error);
-              throw error;
-            }
-            return storageUri;
-          });
-      } else {
-        uploadPromise = Promise.resolve(null);
-      }
-
-      return uploadPromise.then(finalPath => {
-        const dbRecord = {
-          wbs_date: record.wbsDate,
-          file_name: record.fileName,
-          file_data: finalPath,
-          tasks: record.tasks,
-          summary: record.summary,
-          saved_at: record.savedAt
-        };
-
-        if (existingId) {
-          return client.from('wbs_analyses').update(dbRecord).eq('id', existingId).select('id')
-            .then(({ data, error }) => {
-              if (error) throw error;
-              if (data && data.length > 0) return data[0].id;
-              return client.from('wbs_analyses').insert(dbRecord).select('id').then(({ data: insData, error: insErr }) => {
-                if (insErr) throw insErr;
-                return insData[0].id;
-              });
-            });
-        } else {
-          return client.from('wbs_analyses').insert(dbRecord).select('id')
-            .then(({ data, error }) => {
-              if (error) throw error;
-              return data[0].id;
-            });
-        }
-      });
+      const client = getSupabaseClient();
+      if (!client) return Promise.reject(new Error("Supabase not connected"));
+
+      const bucketName = 'wbs-files';
+      const filePath = `${record.wbsDate}/${record.fileName}`;
+      const storageUri = `storage://${bucketName}/${filePath}`;
+
+      let uploadPromise = Promise.resolve(storageUri);
+
+      if (record.fileData) {
+        const blob = new Blob([record.fileData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        uploadPromise = client.storage
+          .from(bucketName)
+          .upload(filePath, blob, {
+            cacheControl: '3600',
+            upsert: true
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("Supabase Storage upload error:", error);
+              throw error;
+            }
+            return storageUri;
+          });
+      } else {
+        uploadPromise = Promise.resolve(null);
+      }
+
+      return uploadPromise.then(finalPath => {
+        const dbRecord = {
+          wbs_date: record.wbsDate,
+          file_name: record.fileName,
+          file_data: finalPath,
+          tasks: record.tasks,
+          summary: record.summary,
+          saved_at: record.savedAt
+        };
+
+        if (existingId) {
+          return client.from('wbs_analyses').update(dbRecord).eq('id', existingId).select('id')
+            .then(({ data, error }) => {
+              if (error) throw error;
+              if (data && data.length > 0) return data[0].id;
+              return client.from('wbs_analyses').insert(dbRecord).select('id').then(({ data: insData, error: insErr }) => {
+                if (insErr) throw insErr;
+                return insData[0].id;
+              });
+            });
+        } else {
+          return client.from('wbs_analyses').insert(dbRecord).select('id')
+            .then(({ data, error }) => {
+              if (error) throw error;
+              return data[0].id;
+            });
+        }
+      });
     }
 
     function supabaseAddOrUpdate(record, existingId = null) {
@@ -3278,6 +3278,7 @@
     function renderAll() {
       const [wMon, wSun] = getWeekRange(TODAY);
       const [nMon, nSun] = getWeekRange(addDays(TODAY, 7));
+      const nFri = addDays(nMon, 4);
 
       document.getElementById('todayLabel').textContent = fmt(TODAY) + ' (' + ['일', '월', '화', '수', '목', '금', '토'][TODAY.getDay()] + ')';
       document.getElementById('srcTag').textContent = '데이터 출처: ' + CURRENT_SOURCE_NAME;
@@ -3288,12 +3289,12 @@
       document.getElementById('ddayLabel').textContent = dday >= 0 ? `사업종료 D-${dday}` : `사업종료 D+${-dday}`;
 
       const thisLabel = `${fmtShort(wMon)} ~ ${fmtShort(wSun)}`;
-      const nextLabel = `${fmtShort(nMon)} ~ ${fmtShort(nSun)}`;
+      const nextLabel = `${fmtShort(nMon)} ~ ${fmtShort(nFri)}`;
       ['thisWeekRangeLabel', 'thisWeekRangeLabel2'].forEach(id => document.getElementById(id).textContent = thisLabel);
       ['nextWeekRangeLabel', 'nextWeekRangeLabel2'].forEach(id => document.getElementById(id).textContent = nextLabel);
 
       const thisWeekTasks = getThisWeekWorkTasks(wMon, wSun);     // 금주: 완료·진행·지연 업무 전체
-      const nextWeekTasks = getTasksInRange(nMon, nSun);          // 차주: 예정 포함
+      const nextWeekTasks = getTasksInRange(nMon, nFri);          // 차주: 월~금 예정 업무
       const delayTasks = getDelayTasks();
 
       renderTaskGroup(document.getElementById('thisWeekList'), thisWeekTasks, '이번 주에 진행한 TASK가 없습니다.', false, true);
@@ -3929,143 +3930,143 @@
     }
 
     /* === Members store (MSTORE) helpers === */
-    function mdbGetAll() {
-      const client = getSupabaseClient();
-      if (!client) {
-        return initDB().then(d => new Promise((resolve, reject) => {
-          const req = d.transaction(MSTORE, 'readonly').objectStore(MSTORE).getAll();
-          req.onsuccess = e => resolve(e.target.result);
-          req.onerror = e => reject(e.target.error);
-        }));
-      }
-
-      return client.from('wbs_members').select('*').order('name', { ascending: true })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error("Supabase members select error:", error);
-            // Local fallback
-            return initDB().then(d => new Promise((resolve, reject) => {
-              const req = d.transaction(MSTORE, 'readonly').objectStore(MSTORE).getAll();
-              req.onsuccess = e => resolve(e.target.result);
-              req.onerror = e => reject(e.target.error);
-            }));
-          }
-
-          const cloudList = (data || []).map(row => ({
-            id: row.id,
-            name: row.name,
-            role: row.role,
-            email: row.email,
-            phone: row.phone,
-            title: row.title,
-            createdAt: row.created_at
-          }));
-
-          // Sync cache to IndexedDB
-          return initDB().then(d => new Promise((resolve) => {
-            const tx = d.transaction(MSTORE, 'readwrite');
-            const store = tx.objectStore(MSTORE);
-            store.clear().onsuccess = () => {
-              if (cloudList.length === 0) {
-                resolve(cloudList);
-                return;
-              }
-              let count = 0;
-              cloudList.forEach(m => {
-                store.put(m).onsuccess = () => {
-                  count++;
-                  if (count === cloudList.length) resolve(cloudList);
-                };
-              });
-            };
-            tx.oncomplete = () => resolve(cloudList);
-            tx.onerror = () => resolve(cloudList);
-          }));
-        });
+    function mdbGetAll() {
+      const client = getSupabaseClient();
+      if (!client) {
+        return initDB().then(d => new Promise((resolve, reject) => {
+          const req = d.transaction(MSTORE, 'readonly').objectStore(MSTORE).getAll();
+          req.onsuccess = e => resolve(e.target.result);
+          req.onerror = e => reject(e.target.error);
+        }));
+      }
+
+      return client.from('wbs_members').select('*').order('name', { ascending: true })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("Supabase members select error:", error);
+            // Local fallback
+            return initDB().then(d => new Promise((resolve, reject) => {
+              const req = d.transaction(MSTORE, 'readonly').objectStore(MSTORE).getAll();
+              req.onsuccess = e => resolve(e.target.result);
+              req.onerror = e => reject(e.target.error);
+            }));
+          }
+
+          const cloudList = (data || []).map(row => ({
+            id: row.id,
+            name: row.name,
+            role: row.role,
+            email: row.email,
+            phone: row.phone,
+            title: row.title,
+            createdAt: row.created_at
+          }));
+
+          // Sync cache to IndexedDB
+          return initDB().then(d => new Promise((resolve) => {
+            const tx = d.transaction(MSTORE, 'readwrite');
+            const store = tx.objectStore(MSTORE);
+            store.clear().onsuccess = () => {
+              if (cloudList.length === 0) {
+                resolve(cloudList);
+                return;
+              }
+              let count = 0;
+              cloudList.forEach(m => {
+                store.put(m).onsuccess = () => {
+                  count++;
+                  if (count === cloudList.length) resolve(cloudList);
+                };
+              });
+            };
+            tx.oncomplete = () => resolve(cloudList);
+            tx.onerror = () => resolve(cloudList);
+          }));
+        });
     }
-    function mdbAdd(record) {
-      const client = getSupabaseClient();
-      if (!client) {
-        return initDB().then(d => new Promise((resolve, reject) => {
-          const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).add(record);
-          req.onsuccess = e => resolve(e.target.result);
-          req.onerror = e => reject(e.target.error);
-        }));
-      }
-
-      const dbRecord = {
-        name: record.name,
-        role: record.role,
-        email: record.email,
-        phone: record.phone,
-        title: record.title,
-        created_at: record.createdAt
-      };
-
-      return client.from('wbs_members').insert(dbRecord).select('id')
-        .then(({ data, error }) => {
-          if (error) throw error;
-          const newId = data[0].id;
-          const cachedRecord = Object.assign({}, record, { id: newId });
-          // Save to IndexedDB cache
-          return initDB().then(d => new Promise((resolve, reject) => {
-            const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(cachedRecord);
-            req.onsuccess = () => resolve(newId);
-            req.onerror = e => reject(e.target.error);
-          }));
-        });
+    function mdbAdd(record) {
+      const client = getSupabaseClient();
+      if (!client) {
+        return initDB().then(d => new Promise((resolve, reject) => {
+          const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).add(record);
+          req.onsuccess = e => resolve(e.target.result);
+          req.onerror = e => reject(e.target.error);
+        }));
+      }
+
+      const dbRecord = {
+        name: record.name,
+        role: record.role,
+        email: record.email,
+        phone: record.phone,
+        title: record.title,
+        created_at: record.createdAt
+      };
+
+      return client.from('wbs_members').insert(dbRecord).select('id')
+        .then(({ data, error }) => {
+          if (error) throw error;
+          const newId = data[0].id;
+          const cachedRecord = Object.assign({}, record, { id: newId });
+          // Save to IndexedDB cache
+          return initDB().then(d => new Promise((resolve, reject) => {
+            const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(cachedRecord);
+            req.onsuccess = () => resolve(newId);
+            req.onerror = e => reject(e.target.error);
+          }));
+        });
     }
-    function mdbPut(id, record) {
-      const client = getSupabaseClient();
-      if (!client) {
-        return initDB().then(d => new Promise((resolve, reject) => {
-          const rec = Object.assign({}, record, { id });
-          const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(rec);
-          req.onsuccess = () => resolve(id);
-          req.onerror = e => reject(e.target.error);
-        }));
-      }
-
-      const dbRecord = {
-        name: record.name,
-        role: record.role,
-        email: record.email,
-        phone: record.phone,
-        title: record.title,
-        created_at: record.createdAt
-      };
-
-      return client.from('wbs_members').update(dbRecord).eq('id', id).select('id')
-        .then(({ data, error }) => {
-          if (error) throw error;
-          const cachedRecord = Object.assign({}, record, { id });
-          // Save to IndexedDB cache
-          return initDB().then(d => new Promise((resolve, reject) => {
-            const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(cachedRecord);
-            req.onsuccess = () => resolve(id);
-            req.onerror = e => reject(e.target.error);
-          }));
-        });
+    function mdbPut(id, record) {
+      const client = getSupabaseClient();
+      if (!client) {
+        return initDB().then(d => new Promise((resolve, reject) => {
+          const rec = Object.assign({}, record, { id });
+          const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(rec);
+          req.onsuccess = () => resolve(id);
+          req.onerror = e => reject(e.target.error);
+        }));
+      }
+
+      const dbRecord = {
+        name: record.name,
+        role: record.role,
+        email: record.email,
+        phone: record.phone,
+        title: record.title,
+        created_at: record.createdAt
+      };
+
+      return client.from('wbs_members').update(dbRecord).eq('id', id).select('id')
+        .then(({ data, error }) => {
+          if (error) throw error;
+          const cachedRecord = Object.assign({}, record, { id });
+          // Save to IndexedDB cache
+          return initDB().then(d => new Promise((resolve, reject) => {
+            const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).put(cachedRecord);
+            req.onsuccess = () => resolve(id);
+            req.onerror = e => reject(e.target.error);
+          }));
+        });
     }
-    function mdbDelete(id) {
-      const client = getSupabaseClient();
-      if (!client) {
-        return initDB().then(d => new Promise((resolve, reject) => {
-          const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).delete(id);
-          req.onsuccess = () => resolve();
-          req.onerror = e => reject(e.target.error);
-        }));
-      }
-
-      return client.from('wbs_members').delete().eq('id', id)
-        .then(({ error }) => {
-          if (error) throw error;
-          return initDB().then(d => new Promise((resolve, reject) => {
-            const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).delete(id);
-            req.onsuccess = () => resolve();
-            req.onerror = e => reject(e.target.error);
-          }));
-        });
+    function mdbDelete(id) {
+      const client = getSupabaseClient();
+      if (!client) {
+        return initDB().then(d => new Promise((resolve, reject) => {
+          const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).delete(id);
+          req.onsuccess = () => resolve();
+          req.onerror = e => reject(e.target.error);
+        }));
+      }
+
+      return client.from('wbs_members').delete().eq('id', id)
+        .then(({ error }) => {
+          if (error) throw error;
+          return initDB().then(d => new Promise((resolve, reject) => {
+            const req = d.transaction(MSTORE, 'readwrite').objectStore(MSTORE).delete(id);
+            req.onsuccess = () => resolve();
+            req.onerror = e => reject(e.target.error);
+          }));
+        });
     }
 
     function dbClear() {
@@ -4539,14 +4540,15 @@
       const delayTasks = data.filter(t => !isDone(t) && (taskDelayDays(t) > 0 || (isInProgress(t) && hasProgressGap(t))))
         .sort((a, b) => taskDelayDays(b) - taskDelayDays(a) || ((b.progress - (b.actualProgress ?? b.progress)) - (a.progress - (a.actualProgress ?? a.progress))));
       const [nMon, nSun] = getWeekRange(addDays(baseline, 7));
+      const nFri = addDays(nMon, 4);
       const tasks = data.filter(t => {
         if (isDone(t)) return false;
         const start = parseDate(t.start), end = parseDate(t.end);
-        return start && end && rangesOverlap(start, end, nMon, nSun);
+        return start && end && rangesOverlap(start, end, nMon, nFri);
       });
       if (tasks.length === 0 && delayTasks.length === 0) return '';
 
-      const rangeStr = `${fmt(nMon)} ~ ${fmt(nSun)}`;
+      const rangeStr = `${fmt(nMon)} ~ ${fmt(nFri)}`;
       const lines = [];
       lines.push(`[금주의 지연 업무] 기준일 ${fmt(baseline)}`);
       lines.push('');
@@ -4610,8 +4612,9 @@
     function copyNextWeekText() {
       const text = buildNextWeekText(WBS_DATA, TODAY, CURRENT_SOURCE_NAME);
       if (!text) { showToast('복사할 차주 할 일 또는 지연 업무가 없습니다.', ''); return; }
-      const [nMon, nSun] = getWeekRange(addDays(TODAY, 7));
-      const tasks = getTasksInRange(nMon, nSun);
+      const [nMon] = getWeekRange(addDays(TODAY, 7));
+      const nFri = addDays(nMon, 4);
+      const tasks = getTasksInRange(nMon, nFri);
       const delayTasks = getDelayTasks();
 
       navigator.clipboard.writeText(text)
@@ -4631,73 +4634,73 @@
       } catch(e) { showToast('URL 생성 오류', 'err'); }
     }
 
-    function restoreAnalysis(id) {
-      dbGet(id).then(r => {
-        if (r) {
-          loadAnalysisRecord(r, id);
-        } else {
-          const client = getSupabaseClient();
-          if (client) {
-            showToast('클라우드에서 데이터를 불러오는 중...', 'info');
-            client.from('wbs_analyses').select('*').eq('id', id).maybeSingle().then(({ data, error }) => {
-              if (error) throw error;
-              if (!data) {
-                showToast('저장 레코드를 찾을 수 없습니다.', 'err');
-                return;
-              }
-              
-              let fileDataPromise = Promise.resolve(null);
-              if (data.file_data) {
-                if (data.file_data.startsWith('storage://')) {
-                  const parts = data.file_data.replace('storage://', '').split('/');
-                  const bucket = parts[0];
-                  const path = parts.slice(1).join('/');
-                  fileDataPromise = client.storage.from(bucket).download(path)
-                    .then(({ data: blob, error: dlErr }) => {
-                      if (dlErr) throw dlErr;
-                      return blob.arrayBuffer();
-                    });
-                } else {
-                  fileDataPromise = Promise.resolve(base64ToArrayBuffer(data.file_data));
-                }
-              }
-
-              fileDataPromise.then(arrayBuffer => {
-                const record = {
-                  id: data.id,
-                  savedAt: data.saved_at,
-                  wbsDate: data.wbs_date,
-                  fileName: data.file_name,
-                  fileData: arrayBuffer,
-                  tasks: data.tasks,
-                  summary: data.summary
-                };
-                dbUpdate(data.id, record).then(() => {
-                  loadAnalysisRecord(record, data.id);
-                  updateHistoryCount();
-                  populateFileSelect(data.id);
-                }).catch(() => {
-                  loadAnalysisRecord(record, data.id);
-                });
-              }).catch(err => {
-                console.error("Storage file download error:", err);
-                const record = {
-                  id: data.id,
-                  savedAt: data.saved_at,
-                  wbsDate: data.wbs_date,
-                  fileName: data.file_name,
-                  fileData: null,
-                  tasks: data.tasks,
-                  summary: data.summary
-                };
-                loadAnalysisRecord(record, data.id);
-              });
-            }).catch(err => showToast('클라우드 불러오기 오류: ' + err.message, 'err'));
-          } else {
-            showToast('저장 레코드를 찾을 수 없습니다 (클라우드 미연동).', 'err');
-          }
-        }
-      }).catch(err => showToast('불러오기 오류: ' + err.message, 'err'));
+    function restoreAnalysis(id) {
+      dbGet(id).then(r => {
+        if (r) {
+          loadAnalysisRecord(r, id);
+        } else {
+          const client = getSupabaseClient();
+          if (client) {
+            showToast('클라우드에서 데이터를 불러오는 중...', 'info');
+            client.from('wbs_analyses').select('*').eq('id', id).maybeSingle().then(({ data, error }) => {
+              if (error) throw error;
+              if (!data) {
+                showToast('저장 레코드를 찾을 수 없습니다.', 'err');
+                return;
+              }
+              
+              let fileDataPromise = Promise.resolve(null);
+              if (data.file_data) {
+                if (data.file_data.startsWith('storage://')) {
+                  const parts = data.file_data.replace('storage://', '').split('/');
+                  const bucket = parts[0];
+                  const path = parts.slice(1).join('/');
+                  fileDataPromise = client.storage.from(bucket).download(path)
+                    .then(({ data: blob, error: dlErr }) => {
+                      if (dlErr) throw dlErr;
+                      return blob.arrayBuffer();
+                    });
+                } else {
+                  fileDataPromise = Promise.resolve(base64ToArrayBuffer(data.file_data));
+                }
+              }
+
+              fileDataPromise.then(arrayBuffer => {
+                const record = {
+                  id: data.id,
+                  savedAt: data.saved_at,
+                  wbsDate: data.wbs_date,
+                  fileName: data.file_name,
+                  fileData: arrayBuffer,
+                  tasks: data.tasks,
+                  summary: data.summary
+                };
+                dbUpdate(data.id, record).then(() => {
+                  loadAnalysisRecord(record, data.id);
+                  updateHistoryCount();
+                  populateFileSelect(data.id);
+                }).catch(() => {
+                  loadAnalysisRecord(record, data.id);
+                });
+              }).catch(err => {
+                console.error("Storage file download error:", err);
+                const record = {
+                  id: data.id,
+                  savedAt: data.saved_at,
+                  wbsDate: data.wbs_date,
+                  fileName: data.file_name,
+                  fileData: null,
+                  tasks: data.tasks,
+                  summary: data.summary
+                };
+                loadAnalysisRecord(record, data.id);
+              });
+            }).catch(err => showToast('클라우드 불러오기 오류: ' + err.message, 'err'));
+          } else {
+            showToast('저장 레코드를 찾을 수 없습니다 (클라우드 미연동).', 'err');
+          }
+        }
+      }).catch(err => showToast('불러오기 오류: ' + err.message, 'err'));
     }
 
     function loadAnalysisRecord(r, id) {
@@ -4713,44 +4716,44 @@
       navigateTo('p-dash');
     }
 
-    function downloadAnalysisFile(id) {
-      dbGet(id).then(r => {
-        if (r && r.fileData) {
-          triggerFileDownload(r.fileName, r.fileData);
-        } else {
-          const client = getSupabaseClient();
-          if (client) {
-            showToast('클라우드에서 파일 데이터를 가져오는 중...', 'info');
-            client.from('wbs_analyses').select('file_name, file_data').eq('id', id).maybeSingle().then(({ data, error }) => {
-              if (error) throw error;
-              if (!data || !data.file_data) {
-                showToast('저장된 파일 데이터가 없습니다.', 'err');
-                return;
-              }
-
-              let fileDataPromise = Promise.resolve(null);
-              if (data.file_data.startsWith('storage://')) {
-                const parts = data.file_data.replace('storage://', '').split('/');
-                const bucket = parts[0];
-                const path = parts.slice(1).join('/');
-                fileDataPromise = client.storage.from(bucket).download(path)
-                  .then(({ data: blob, error: dlErr }) => {
-                    if (dlErr) throw dlErr;
-                    return blob.arrayBuffer();
-                  });
-              } else {
-                fileDataPromise = Promise.resolve(base64ToArrayBuffer(data.file_data));
-              }
-
-              fileDataPromise.then(buffer => {
-                triggerFileDownload(data.file_name, buffer);
-              }).catch(err => showToast('파일 다운로드 실패: ' + err.message, 'err'));
-            }).catch(err => showToast('다운로드 오류: ' + err.message, 'err'));
-          } else {
-            showToast('저장된 파일 데이터가 없습니다.', 'err');
-          }
-        }
-      }).catch(err => showToast('다운로드 오류: ' + err.message, 'err'));
+    function downloadAnalysisFile(id) {
+      dbGet(id).then(r => {
+        if (r && r.fileData) {
+          triggerFileDownload(r.fileName, r.fileData);
+        } else {
+          const client = getSupabaseClient();
+          if (client) {
+            showToast('클라우드에서 파일 데이터를 가져오는 중...', 'info');
+            client.from('wbs_analyses').select('file_name, file_data').eq('id', id).maybeSingle().then(({ data, error }) => {
+              if (error) throw error;
+              if (!data || !data.file_data) {
+                showToast('저장된 파일 데이터가 없습니다.', 'err');
+                return;
+              }
+
+              let fileDataPromise = Promise.resolve(null);
+              if (data.file_data.startsWith('storage://')) {
+                const parts = data.file_data.replace('storage://', '').split('/');
+                const bucket = parts[0];
+                const path = parts.slice(1).join('/');
+                fileDataPromise = client.storage.from(bucket).download(path)
+                  .then(({ data: blob, error: dlErr }) => {
+                    if (dlErr) throw dlErr;
+                    return blob.arrayBuffer();
+                  });
+              } else {
+                fileDataPromise = Promise.resolve(base64ToArrayBuffer(data.file_data));
+              }
+
+              fileDataPromise.then(buffer => {
+                triggerFileDownload(data.file_name, buffer);
+              }).catch(err => showToast('파일 다운로드 실패: ' + err.message, 'err'));
+            }).catch(err => showToast('다운로드 오류: ' + err.message, 'err'));
+          } else {
+            showToast('저장된 파일 데이터가 없습니다.', 'err');
+          }
+        }
+      }).catch(err => showToast('다운로드 오류: ' + err.message, 'err'));
     }
 
     function triggerFileDownload(fileName, fileBuffer) {
