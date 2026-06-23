@@ -3495,12 +3495,12 @@
       const selected = select.value || 'current';
       // Supabase 포함 전체 이력에서 기준일 목록 구성
       getCombinedHistoryList().then(all => {
-        // 업로드된 파일 1개당 1개의 기준일만 표시 (wbsDate 기준 최신 저장본)
-        const byDate = new Map();
+        // 업로드된 파일 1개당 1개의 기준일만 표시 (fileName 기준 최신 저장본)
+        const byFile = new Map();
         [...all]
           .sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''))
-          .forEach(r => byDate.set(r.wbsDate, r));
-        const records = [...byDate.values()].sort((a, b) => b.wbsDate.localeCompare(a.wbsDate));
+          .forEach(r => byFile.set(r.fileName, r));
+        const records = [...byFile.values()].sort((a, b) => b.wbsDate.localeCompare(a.wbsDate));
         select.innerHTML = '<option value="current">기준일 선택 — 현재 분석 (' + fmt(TODAY) + ')</option>' +
           records.map(r => `<option value="${r.id}">${r.wbsDate} · ${r.fileName}</option>`).join('');
         select.value = [...select.options].some(o => o.value === selected) ? selected : 'current';
