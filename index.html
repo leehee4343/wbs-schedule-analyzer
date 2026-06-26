@@ -2926,7 +2926,11 @@
 
     function rangesOverlap(s1, e1, s2, e2) { return s1 <= e2 && s2 <= e1; }
 
-    function isDone(t) { return t.status === 1 || (t.progress >= 100); }
+    function isDone(t) {
+      // 완료 여부는 실적 시트의 공정율 100%만 기준으로 삼습니다.
+      // 계획 시트의 진척율/K열/N열, 실적 시트의 상태/완료일은 공정율 100%를 대체하지 않습니다.
+      return t.hasActual && t.actualProgress >= 100;
+    }
 
     function delayDays(t) {
       const end = parseDate(t.end);
@@ -2935,10 +2939,14 @@
       return diff > 0 ? diff : 0;
     }
 
+    function isDelayByDate(t) {
+      const end = parseDate(t.end);
+      return !!(end && !isDone(t) && TODAY >= end);
+    }
+
     function taskStatus(t) {
       if (isDone(t)) return 'done';
-      const dd = delayDays(t);
-      if (dd > 0) return 'delay';
+      if (isDelayByDate(t)) return 'delay';
       const start = parseDate(t.start), end = parseDate(t.end);
       if (start && start <= TODAY && (!end || end >= TODAY)) return 'progress';
       return 'upcoming';
@@ -2956,7 +2964,9 @@
       const dd = delayDays(t);
       const ap = t.actualProgress;
       const progGap = (ap !== undefined && ap < t.progress) ? t.progress - ap : 0;
-      const delayNote = dd > 0 ? `<span class="t-delaydays">${dd}일 지연</span>` : '';
+      const delayNote = dd > 0
+        ? `<span class="t-delaydays">${dd}일 지연</span>`
+        : (st === 'delay' && isDelayByDate(t) ? `<span class="t-delaydays">마감일 도래</span>` : '');
       const progGapNote = (progGap > 0 && dd === 0)
         ? `<span class="t-delaydays" style="background:#FEF3C7;color:#92400E;border-color:#FDE68A;">실적 ${progGap}%p 미달</span>`
         : '';
@@ -3068,7 +3078,7 @@
     function getDelayTasks() {
       return WBS_DATA.filter(t => {
         if (isDone(t)) return false;
-        if (delayDays(t) > 0) return true;                                      // 일정 지연
+        if (isDelayByDate(t)) return true;                                      // 계획완료일 도래/초과
         if (taskStatus(t) === 'progress' && hasProgressGap(t)) return true;     // 실적 미달
         return false;
       }).sort((a, b) => {
@@ -3181,8 +3191,10 @@
             const dd = delayDays(t);
             const start = parseDate(t.start), end = parseDate(t.end);
             const actualEnd = parseDate(t.actual_end);
-            const dateStr = `${fmt(start)} ~ ${fmt(end)}${actualEnd ? ` · 완료 ${fmt(actualEnd)}` : ''}`;
-            const delayText = dd > 0 ? `<span class="t-delaydays" style="font-size:10px;padding:1px 6px;flex-shrink:0">${dd}일 지연</span>` : '';
+            const dateStr = `${fmt(start)} ~ ${fmt(end)}${st === 'done' && actualEnd ? ` · 완료 ${fmt(actualEnd)}` : ''}`;
+            const delayText = dd > 0
+              ? `<span class="t-delaydays" style="font-size:10px;padding:1px 6px;flex-shrink:0">${dd}일 지연</span>`
+              : (st === 'delay' && isDelayByDate(t) ? `<span class="t-delaydays" style="font-size:10px;padding:1px 6px;flex-shrink:0">마감일 도래</span>` : '');
             const rowCls = st === 'delay' ? 'is-delay' : (st === 'done' ? 'is-done' : '');
             const barColor = st === 'done' ? 'background:var(--green)' : (st === 'delay' ? 'background:var(--red)' : '');
             const ap = t.actualProgress;
@@ -3310,11 +3322,11 @@
       document.getElementById('navCountThis').textContent = thisWeekTasks.length;
       document.getElementById('navCountNext').textContent = nextWeekTasks.length;
       document.getElementById('navCountDelay').textContent = delayTasks.length;
-      const dateCnt = delayTasks.filter(t => delayDays(t) > 0).length;
+      const dateCnt = delayTasks.filter(t => isDelayByDate(t)).length;
       const gapCnt  = delayTasks.length - dateCnt;
       const delayBreakdown = dateCnt > 0 && gapCnt > 0
-        ? `일정 초과 ${dateCnt}건 · 실적 미달 ${gapCnt}건`
-        : gapCnt > 0 ? `실적 미달 ${gapCnt}건` : `일정 초과 ${dateCnt}건`;
+        ? `마감 도래/초과 ${dateCnt}건 · 실적 미달 ${gapCnt}건`
+        : gapCnt > 0 ? `실적 미달 ${gapCnt}건` : `마감 도래/초과 ${dateCnt}건`;
       document.getElementById('delayCountLabel').textContent = `총 ${delayTasks.length}건 (${delayBreakdown})`;
 
       // KPI
@@ -3435,7 +3447,7 @@
       getCombinedHistoryList().then(all => {
         const sel = document.getElementById('fileSelect');
         if (!sel) return;
-        const dates = [...new Set(all.map(r => r.wbsDate))].sort((a, b) => a.localeCompare(b));
+        const dates = [...new Set(all.map(r => r.wbsDate))].sort((a, b) => b.localeCompare(a));
         sel.innerHTML = '<option value="">날짜 선택</option>' +
           dates.map(d => {
             const rec = all.find(r => r.wbsDate === d);
@@ -3815,6 +3827,17 @@
         const y = v.getFullYear(), m = ('0' + (v.getMonth() + 1)).slice(-2), d = ('0' + v.getDate()).slice(-2);
         return `${y}-${m}-${d}`;
       }
+      // Excel 시리얼 숫자 → 날짜 변환 (Excel epoch: 1899-12-30 기준, 1900 윤년 버그 포함)
+      if (typeof v === 'number' && v > 1 && v < 100000) {
+        const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+        const y = d.getUTCFullYear(), mm = ('0' + (d.getUTCMonth() + 1)).slice(-2), dd = ('0' + d.getUTCDate()).slice(-2);
+        return `${y}-${mm}-${dd}`;
+      }
+      // 문자열 날짜 (예: "2026-06-18")
+      if (typeof v === 'string') {
+        const m = v.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+        if (m) return `${m[1]}-${('0'+m[2]).slice(-2)}-${('0'+m[3]).slice(-2)}`;
+      }
       return null;
     }
 
@@ -3844,10 +3867,8 @@
         const weight      = row[4];   // E열: 가중치
         const deliverable = row[5];   // F열: 산출물
         const progress    = row[6];   // G열: 계획 진척율 (0~1)
-        const status      = row[10];  // K열: 진행상태
         const start       = row[11];  // L열: 시작
         const end         = row[12];  // M열: 계획완료
-        const actualEnd   = row[13];  // N열: 실제완료
 
         if (phase)    curPhase    = String(phase).replace(/\r\n/g, ' ').trim();
         if (activity) curActivity = String(activity).replace(/\r\n/g, ' ').trim();
@@ -3856,8 +3877,11 @@
         // 실적 시트에서 동일 행 진척율 읽기
         const actRow = actRows ? (actRows[r] || []) : [];
         const actProg = actRow[6];
+        const actStatus = actRow[10];  // 실적 시트 K열: 진행상태
+        const actEnd = actRow[13];     // 실적 시트 N열: 실제완료
+        const hasActual = typeof actProg === 'number';
         const planProgress   = Math.round((typeof progress === 'number' ? progress : 0) * 100);
-        const actualProgress = typeof actProg === 'number'
+        const actualProgress = hasActual
           ? Math.round(actProg * 100)
           : planProgress;   // 실적 시트 없으면 계획과 동일
 
@@ -3867,10 +3891,11 @@
           deliverable: deliverable ? String(deliverable).replace(/\r\n/g, ' ') : '',
           progress: planProgress,
           actualProgress,
-          status: typeof status === 'number' ? status : 0,
+          hasActual,
+          status: typeof actStatus === 'number' ? actStatus : 0,
           start: excelDateToStr(start),
           end: excelDateToStr(end),
-          actual_end: excelDateToStr(actualEnd)
+          actual_end: excelDateToStr(actEnd)
         });
       }
       return { tasks: data, todayStr };
@@ -3906,16 +3931,20 @@
           WBS_DATA = parsed;
           CURRENT_SOURCE_NAME = file.name;
           CURRENT_FILE_BUFFER = buffer;
-          if (todayStr) {
-            TODAY = startOfDay(parseDate(todayStr));
+          // 파일명 앞 8자리(YYYYMMDD)를 기준일로 우선 사용, 없으면 엑셀 Today 셀, 그것도 없으면 시스템 날짜
+          const fileNameMatch = file.name.match(/^(\d{4})(\d{2})(\d{2})/);
+          const fileDateStr = fileNameMatch ? `${fileNameMatch[1]}-${fileNameMatch[2]}-${fileNameMatch[3]}` : null;
+          const resolvedDate = fileDateStr || todayStr;
+          if (resolvedDate) {
+            TODAY = startOfDay(parseDate(resolvedDate));
           }
           initFilters();
           renderAll();
-          const todayNote = todayStr ? ` · 기준일 ${todayStr} (엑셀 Today 셀)` : '';
+          const dateNote = fileDateStr ? ` · 기준일 ${fileDateStr} (파일명)` : (todayStr ? ` · 기준일 ${todayStr} (엑셀 Today 셀)` : '');
           statusEl.className = 'upload-status show ok';
-          statusEl.textContent = `✔ "${file.name}" 적용 완료 — TASK ${parsed.length}건 인식${todayNote}`;
+          statusEl.textContent = `✔ "${file.name}" 적용 완료 — TASK ${parsed.length}건 인식${dateNote}`;
           addUploadHistory(file.name, parsed.length, true);
-          showSaveBar(file.name, todayStr || fmt(TODAY), parsed.length);
+          showSaveBar(file.name, fmt(TODAY), parsed.length);
         } catch (err) {
           statusEl.className = 'upload-status show err';
           statusEl.textContent = `⚠ 파일을 분석하지 못했습니다: ${err.message}`;
@@ -4593,16 +4622,20 @@
         if (!end || isDone(t)) return 0;
         return Math.max(0, Math.round((baseline - end) / 86400000));
       };
+      const isDelayByBaseline = t => {
+        const end = parseDate(t.end);
+        return !!(end && !isDone(t) && baseline >= end);
+      };
       const isInProgress = t => {
         const start = parseDate(t.start), end = parseDate(t.end);
         return !isDone(t) && start && start <= baseline && (!end || end >= baseline);
       };
       const taskStatusFor = t => {
         if (isDone(t)) return 'done';
-        if (taskDelayDays(t) > 0) return 'delay';
+        if (isDelayByBaseline(t)) return 'delay';
         return isInProgress(t) ? 'progress' : 'upcoming';
       };
-      const delayTasks = data.filter(t => !isDone(t) && (taskDelayDays(t) > 0 || (isInProgress(t) && hasProgressGap(t))))
+      const delayTasks = data.filter(t => !isDone(t) && (isDelayByBaseline(t) || (isInProgress(t) && hasProgressGap(t))))
         .sort((a, b) => taskDelayDays(b) - taskDelayDays(a) || ((b.progress - (b.actualProgress ?? b.progress)) - (a.progress - (a.actualProgress ?? a.progress))));
       const [nMon, nSun] = getWeekRange(addDays(baseline, 7));
       const nFri = addDays(nMon, 4);
@@ -4633,7 +4666,9 @@
           }
           const dd = taskDelayDays(t);
           const gap = t.actualProgress != null ? t.progress - t.actualProgress : 0;
-          const issue = dd > 0 ? `${dd}일 지연` : `실적 ${gap}%p 미달`;
+          const issue = isDelayByBaseline(t)
+            ? (dd > 0 ? `${dd}일 지연` : '마감일 도래')
+            : `실적 ${gap}%p 미달`;
           const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
           const ap = t.actualProgress != null ? ` / 실적 ${t.actualProgress}%` : '';
           const start = t.start ? ` ${t.start}` : '';
@@ -4769,13 +4804,26 @@
     }
 
     function loadAnalysisRecord(r, id) {
-      WBS_DATA = r.tasks;
+      let tasks = r.tasks;
+      // 예전 버전에서 저장된 분석 결과는 계획 시트의 완료값을 들고 있을 수 있습니다.
+      // 원본 엑셀 데이터가 있으면 다시 파싱해 완료 여부를 실적 시트 기준으로 보정합니다.
+      if (r.fileData && window.XLSX) {
+        try {
+          const workbook = XLSX.read(new Uint8Array(r.fileData), { type: 'array', cellDates: true });
+          const reparsed = parseWbsWorkbook(workbook);
+          if (reparsed.tasks && reparsed.tasks.length > 0) tasks = reparsed.tasks;
+        } catch (e) {
+          console.warn('Saved workbook reparse failed:', e);
+        }
+      }
+
+      WBS_DATA = tasks;
       CURRENT_SOURCE_NAME = r.fileName;
       CURRENT_FILE_BUFFER = r.fileData;
       TODAY = startOfDay(parseDate(r.wbsDate));
       initFilters();
       renderAll();
-      showSaveBar(r.fileName, r.wbsDate, r.tasks.length);
+      showSaveBar(r.fileName, r.wbsDate, tasks.length);
       showToast(`✔ "${r.fileName}" (기준일 ${r.wbsDate}) 불러오기 완료`, 'ok');
       updateUrlParam(id);
       navigateTo('p-dash');
