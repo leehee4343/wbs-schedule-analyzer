@@ -815,7 +815,7 @@
 
     const MAIL_HEADER_NOTICE =
       '안녕하세요. 이희성 이사입니다.\n' +
-      '금주 지연 업무와 차주 할일에 대해서 안내드립니다.\n\n' +
+      '금주 한 일, 차주 할 일, 그리고 지연 업무에 대해서 안내드립니다.\n\n' +
       '해당 일정을 확인하신 후 파트(PM/기획, 개발, UI/UX) 차주 수요일까지 주간보고에 넣을 내용을 메일로 제출 부탁드립니다.\n\n' +
       '메일 주소 : 이희성  leehee43@16block.com\n\n' +
       '-'.repeat(95) + '\n' +
@@ -1908,22 +1908,98 @@
         if (isDelayByBaseline(t)) return 'delay';
         return isInProgress(t) ? 'progress' : 'upcoming';
       };
-      const delayTasks = data.filter(t => !isDone(t) && (isDelayByBaseline(t) || (isInProgress(t) && hasProgressGap(t))))
-        .sort((a, b) => taskDelayDays(b) - taskDelayDays(a) || ((b.progress - (b.actualProgress ?? b.progress)) - (a.progress - (a.actualProgress ?? a.progress))));
+
+      // 1. 금주 한 일
+      const [wMon, wSun] = getWeekRange(baseline);
+      const thisWeekTasks = data.filter(t => {
+        const start = parseDate(t.start), end = parseDate(t.end);
+        if (!start || !end) return false;
+        if (isDone(t)) {
+          const completedOn = parseDate(t.actual_end) || end;
+          return completedOn >= wMon && completedOn <= wSun;
+        }
+        return taskStatusFor(t) !== 'upcoming' && rangesOverlap(start, end, wMon, wSun);
+      });
+
+      // 2. 차주 할 일
       const [nMon, nSun] = getWeekRange(addDays(baseline, 7));
       const nFri = addDays(nMon, 4);
-      const tasks = data.filter(t => {
+      const nextWeekTasks = data.filter(t => {
         if (isDone(t)) return false;
         const start = parseDate(t.start), end = parseDate(t.end);
         return start && end && rangesOverlap(start, end, nMon, nFri);
       });
-      if (tasks.length === 0 && delayTasks.length === 0) return '';
 
-      const rangeStr = `${fmt(nMon)} ~ ${fmt(nFri)}`;
+      // 3. 지연 업무
+      const delayTasks = data.filter(t => {
+        if (isDone(t)) return false;
+        return isDelayByBaseline(t) || (isInProgress(t) && hasProgressGap(t));
+      }).sort((a, b) => taskDelayDays(b) - taskDelayDays(a) || ((b.progress - (b.actualProgress ?? b.progress)) - (a.progress - (a.actualProgress ?? a.progress))));
+
+      if (thisWeekTasks.length === 0 && nextWeekTasks.length === 0 && delayTasks.length === 0) return '';
+
       const lines = [];
-      lines.push(`[금주의 지연 업무] 기준일 ${fmt(baseline)}`);
+
+      // [금주 한 일] 렌더링
+      const wRangeStr = `${fmt(wMon)} ~ ${fmt(wSun)}`;
+      lines.push(`[금주 한 일] ${wRangeStr}`);
+      lines.push('');
+      if (thisWeekTasks.length === 0) {
+        lines.push('이번 주에 진행한 업무가 없습니다.');
+      } else {
+        let lastPhase = '', lastAct = '';
+        thisWeekTasks.forEach((t, i) => {
+          if (t.phase && t.phase !== lastPhase) {
+            lines.push(`▣ ${t.phase}`);
+            lastPhase = t.phase; lastAct = '';
+          }
+          if (t.activity && t.activity !== lastAct) {
+            lines.push(`  ◆ ${t.activity}`);
+            lastAct = t.activity;
+          }
+          const st = STATUS_LABEL[taskStatusFor(t)] || '';
+          const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
+          const ap = t.actualProgress != null ? ` / 실적 ${t.actualProgress}%` : '';
+          const start = t.start ? ` ${t.start}` : '';
+          const end = t.end ? ` ~ ${t.end}` : '';
+          lines.push(`    ${i + 1}. [${st}] ${t.task}${pct}${ap} |${start}${end}`);
+        });
+      }
+
       lines.push('');
 
+      // [차주 할 일] 렌더링
+      const nRangeStr = `${fmt(nMon)} ~ ${fmt(nFri)}`;
+      lines.push(`[차주 할 일] ${nRangeStr}`);
+      lines.push('');
+      if (nextWeekTasks.length === 0) {
+        lines.push('다음 주에 예정된 TASK가 없습니다.');
+      } else {
+        let lastPhase = '', lastAct = '';
+        nextWeekTasks.forEach((t, i) => {
+          if (t.phase && t.phase !== lastPhase) {
+            lines.push(`▣ ${t.phase}`);
+            lastPhase = t.phase; lastAct = '';
+          }
+          if (t.activity && t.activity !== lastAct) {
+            lines.push(`  ◆ ${t.activity}`);
+            lastAct = t.activity;
+          }
+          const st = STATUS_LABEL[taskStatusFor(t)] || '';
+          const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
+          const ap  = t.actualProgress != null && t.actualProgress !== t.progress
+            ? ` / 실적 ${t.actualProgress}%` : '';
+          const start = t.start ? ` ${t.start}` : '';
+          const end   = t.end   ? ` ~ ${t.end}` : '';
+          lines.push(`    ${i + 1}. [${st}] ${t.task}${pct}${ap} |${start}${end}`);
+        });
+      }
+
+      lines.push('');
+
+      // [지연 업무] 렌더링
+      lines.push(`[지연 업무] 기준일 ${fmt(baseline)}`);
+      lines.push('');
       if (delayTasks.length === 0) {
         lines.push('지연 업무가 없습니다.');
       } else {
@@ -1951,47 +2027,22 @@
       }
 
       lines.push('');
-      lines.push(`[차주 할 일] ${rangeStr}`);
-      lines.push('');
-
-      if (tasks.length === 0) {
-        lines.push('다음 주에 예정된 TASK가 없습니다.');
-      } else {
-        let lastPhase = '', lastAct = '';
-        tasks.forEach((t, i) => {
-          if (t.phase && t.phase !== lastPhase) {
-            lines.push(`▣ ${t.phase}`);
-            lastPhase = t.phase; lastAct = '';
-          }
-          if (t.activity && t.activity !== lastAct) {
-            lines.push(`  ◆ ${t.activity}`);
-            lastAct = t.activity;
-          }
-          const st = STATUS_LABEL[taskStatusFor(t)] || '';
-          const pct = t.progress != null ? ` (계획 ${t.progress}%)` : '';
-          const ap  = t.actualProgress != null && t.actualProgress !== t.progress
-            ? ` / 실적 ${t.actualProgress}%` : '';
-          const start = t.start ? ` ${t.start}` : '';
-          const end   = t.end   ? ` ~ ${t.end}` : '';
-          lines.push(`    ${i + 1}. [${st}] ${t.task}${pct}${ap} |${start}${end}`);
-        });
-      }
-
-      lines.push('');
       lines.push(`※ 기준일: ${fmt(baseline)} / 출처: ${sourceName}`);
       return lines.join('\n');
     }
 
     function copyNextWeekText() {
       const text = buildNextWeekText(WBS_DATA, TODAY, CURRENT_SOURCE_NAME);
-      if (!text) { showToast('복사할 차주 할 일 또는 지연 업무가 없습니다.', ''); return; }
+      if (!text) { showToast('복사할 주간 업무보고 내용이 없습니다.', ''); return; }
+      const [wMon, wSun] = getWeekRange(TODAY);
       const [nMon] = getWeekRange(addDays(TODAY, 7));
       const nFri = addDays(nMon, 4);
-      const tasks = getTasksInRange(nMon, nFri);
+      const thisTasks = getThisWeekWorkTasks(wMon, wSun);
+      const nextTasks = getTasksInRange(nMon, nFri);
       const delayTasks = getDelayTasks();
 
       navigator.clipboard.writeText(text)
-        .then(() => showToast(`지연 업무 ${delayTasks.length}건 · 차주 할 일 ${tasks.length}건 복사 완료`, 'ok'))
+        .then(() => showToast(`금주 ${thisTasks.length}건 · 차주 ${nextTasks.length}건 · 지연 ${delayTasks.length}건 복사 완료`, 'ok'))
         .catch(() => { prompt('아래 내용을 복사하세요:', text); });
     }
 
