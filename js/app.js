@@ -182,7 +182,6 @@
     /* ===================== 날짜 유틸 ===================== */
     function parseDate(s) { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
     function fmt(d) { if (!d) return '-'; const y = d.getFullYear(), m = ('0' + (d.getMonth() + 1)).slice(-2), dd = ('0' + d.getDate()).slice(-2); return `${y}-${m}-${dd}`; }
-    function fmtShort(d) { if (!d) return '-'; const m = d.getMonth() + 1, dd = d.getDate(); const w = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()]; return `${m}/${dd}(${w})`; }
     function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
     function startOfDay(d) { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; }
 
@@ -226,69 +225,45 @@
     }
     const STATUS_LABEL = { done: '완료', delay: '지연', progress: '진행중', upcoming: '예정' };
 
+    /* ===================== 표시 유틸 ===================== */
+    const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+    // 엑셀·DB에서 온 문자열을 innerHTML에 넣기 전에 이스케이프합니다.
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    // 화면 표기용 날짜(YYYY.MM.DD). 저장·비교용 값은 fmt()의 YYYY-MM-DD를 유지합니다.
+    function fmtDot(d) { return d ? fmt(d).replace(/-/g, '.') : '-'; }
+    function dotStr(s) { return s ? String(s).replace(/-/g, '.') : '-'; }
+    function fmtRange(s, e) { return `${fmtDot(s)} ~ ${fmtDot(e)}`; }
+
+    function emptyRow(colspan, msg) { return `<tr><td colspan="${colspan}" class="table-empty">${msg}</td></tr>`; }
+
     /* ===================== 렌더링 ===================== */
-    function badgeHtml(st) { return `<span class="badge ${st}">${STATUS_LABEL[st]}</span>`; }
+    const STATUS_BADGE = { done: 'badge-success', delay: 'badge-danger', progress: 'badge-warning', upcoming: 'badge-tag' };
+    function badgeHtml(st) { return `<span class="${STATUS_BADGE[st]}">${STATUS_LABEL[st]}</span>`; }
 
-    function taskRowHtml(t, showPlanActual = false) {
-      const st = taskStatus(t);
+    function taskPeriod(t) {
       const start = parseDate(t.start), end = parseDate(t.end);
-      const dateLabel = (start && end) ? `${fmtShort(start)} ~ ${fmtShort(end)}` : '-';
-      const barClass = st === 'delay' ? 'delaybar' : (st === 'done' ? 'donebar' : '');
+      return start && end ? fmtRange(start, end) : '-';
+    }
+
+    const pctText = v => (v === undefined || v === null ? '-' : v);
+
+    function diffHtml(t) {
+      if (t.actualProgress === undefined || t.actualProgress === null) return '-';
+      const diff = t.actualProgress - t.progress;
+      if (diff === 0) return '0';
+      return `<span class="${diff < 0 ? 'text-danger' : 'text-success'}">${diff > 0 ? '+' : ''}${diff}</span>`;
+    }
+
+    // 일정 지연(마감 도래·초과)을 먼저, 그다음 실적 미달을 표시합니다.
+    function noteHtml(t) {
       const dd = delayDays(t);
-      const ap = t.actualProgress;
-      const progGap = (ap !== undefined && ap < t.progress) ? t.progress - ap : 0;
-      const delayNote = dd > 0
-        ? `<span class="t-delaydays">${dd}일 지연</span>`
-        : (st === 'delay' && isDelayByDate(t) ? `<span class="t-delaydays">마감일 도래</span>` : '');
-      const progGapNote = (progGap > 0 && dd === 0)
-        ? `<span class="t-delaydays" style="background:#FEF3C7;color:#92400E;border-color:#FDE68A;">실적 ${progGap}%p 미달</span>`
-        : '';
-      const phasePart = t.phase ? `<span class="m-tag">${t.phase}</span>` : '';
-      const actPart = t.activity ? `<span style="color:var(--text-sub);">${t.activity}</span>` : '';
-      const delivPart = t.deliverable ? `<span class="m-tag" style="background:var(--bg);color:var(--text-muted);">산출물: ${t.deliverable}</span>` : '';
-
-      const hasActual = ap !== undefined && ap !== null;
-      const hasDiff = hasActual && ap !== t.progress;
-      let progressHtml;
-      if (showPlanActual || hasDiff) {
-        const actualValue = hasActual ? ap : 0;
-        const diff = actualValue - t.progress;
-        const gapClass = diff < 0 ? 'behind' : 'ahead';
-        const gapStr = (diff > 0 ? '+' : '') + diff + '%p';
-        const gapBadge = hasActual ? `<span class="gap-badge ${gapClass}">${gapStr}</span>` : '<span class="gap-badge behind">실적 미입력</span>';
-        progressHtml = `
-    <div class="dual-bar-wrap">
-      <div class="dual-bar-row">
-        <span class="dual-bar-label">계획</span>
-        <div class="dual-bar-track"><div class="dual-bar-fill plan-fill" style="width:${t.progress}%"></div></div>
-        <span class="dual-bar-pct">${t.progress}%</span>
-      </div>
-      <div class="dual-bar-sep"></div>
-      <div class="dual-bar-row">
-        <span class="dual-bar-label">실적</span>
-        <div class="dual-bar-track"><div class="dual-bar-fill actual-fill" style="width:${actualValue}%"></div></div>
-        <span class="dual-bar-pct">${hasActual ? actualValue + '%' : '-'}</span>
-      </div>
-      ${gapBadge}
-    </div>`;
-      } else {
-        progressHtml = `
-    <div class="task-bar-wrap">
-      <div class="task-bar-bg ${barClass}"><div class="task-bar-fill" style="width:${t.progress}%;"></div></div>
-      <div class="task-pct">${t.progress}%</div>
-    </div>`;
-      }
-
-      return `
-  <div class="task-row ${st === 'delay' ? 'is-delay' : ''}">
-    ${badgeHtml(st)}
-    <div class="task-info">
-      <div class="t-name">${t.task}</div>
-      <div class="t-meta">${phasePart}${actPart}${delivPart}${delayNote}${progGapNote}</div>
-    </div>
-    ${progressHtml}
-    <div class="task-date">${dateLabel}</div>
-  </div>`;
+      if (dd > 0) return `<span class="text-danger">${dd}일 지연</span>`;
+      if (isDelayByDate(t)) return '<span class="text-danger">마감일 도래</span>';
+      if (hasProgressGap(t)) return `<span class="text-warning">실적 ${t.progress - t.actualProgress}%p 미달</span>`;
+      return '-';
     }
 
     function groupByPhase(list) {
@@ -301,20 +276,56 @@
       return map;
     }
 
-    function renderTaskGroup(container, list, emptyMsg, emptyGood, showPlanActual = false) {
-      if (list.length === 0) {
-        container.innerHTML = `<div class="empty-msg ${emptyGood ? 'good' : ''}">${emptyMsg}</div>`;
-        return;
-      }
-      const grouped = groupByPhase(list);
-      let html = '';
-      grouped.forEach((tasks, phase) => {
-        html += `<div class="phase-group"><div class="phase-title">${phase}</div>`;
-        tasks.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-        tasks.forEach(t => html += taskRowHtml(t, showPlanActual));
-        html += `</div>`;
-      });
-      container.innerHTML = html;
+    // 단계는 WBS 등장 순서, 같은 단계 안에서는 시작일 순으로 정렬합니다.
+    function sortByPhaseThenStart(list) {
+      const order = new Map();
+      list.forEach(t => { const key = t.phase || '기타'; if (!order.has(key)) order.set(key, order.size); });
+      return [...list].sort((a, b) =>
+        (order.get(a.phase || '기타') - order.get(b.phase || '기타')) || (a.start || '').localeCompare(b.start || ''));
+    }
+
+    function taskTableRowHtml(t, i) {
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${badgeHtml(taskStatus(t))}</td>
+        <td class="cell-wrap is-narrow">${esc(t.phase || '-')}</td>
+        <td class="cell-wrap is-narrow">${esc(t.activity || '-')}</td>
+        <td class="cell-wrap">${esc(t.task)}</td>
+        <td class="cell-wrap is-narrow">${esc(t.deliverable || '-')}</td>
+        <td>${taskPeriod(t)}</td>
+        <td>${t.progress}</td>
+        <td>${pctText(t.actualProgress)}</td>
+        <td>${diffHtml(t)}</td>
+        <td>${noteHtml(t)}</td>
+      </tr>`;
+    }
+
+    function renderTaskTable(tbodyId, list, emptyMsg) {
+      document.getElementById(tbodyId).innerHTML = list.length
+        ? sortByPhaseThenStart(list).map(taskTableRowHtml).join('')
+        : emptyRow(11, emptyMsg);
+    }
+
+    function previewRowHtml(t) {
+      return `<tr>
+        <td>${badgeHtml(taskStatus(t))}</td>
+        <td class="cell-wrap is-narrow">${esc(t.phase || '-')}</td>
+        <td class="cell-wrap">${esc(t.task)}</td>
+        <td>${taskPeriod(t)}</td>
+        <td>${t.progress}</td>
+        <td>${pctText(t.actualProgress)}</td>
+        <td>${noteHtml(t)}</td>
+      </tr>`;
+    }
+
+    // 대시보드 목록 위젯은 5건만 보여 주고 전체는 '더보기 +'로 이동합니다.
+    const DASHBOARD_PREVIEW_ROWS = 5;
+
+    function renderDashboardPreview(tbodyId, list, emptyMsg, sortFn) {
+      const sorted = sortFn ? [...list].sort(sortFn) : [...list].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+      document.getElementById(tbodyId).innerHTML = sorted.length
+        ? sorted.slice(0, DASHBOARD_PREVIEW_ROWS).map(previewRowHtml).join('')
+        : emptyRow(7, emptyMsg);
     }
 
     function getTasksInRange(rangeStart, rangeEnd, excludeUpcoming = false) {
@@ -363,38 +374,62 @@
       });
     }
 
-    function renderDashboardPreview(container, list, max, emptyMsg, sortFn) {
-      if (list.length === 0) {
-        container.innerHTML = `<div class="empty-msg good">${emptyMsg}</div>`;
-        return;
-      }
-      const sorted = sortFn ? [...list].sort(sortFn) : [...list].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-      const top = sorted.slice(0, max);
-      let html = '';
-      top.forEach(t => html += taskRowHtml(t));
-      if (sorted.length > max) {
-        html += `<div class="empty-msg">외 ${sorted.length - max}건 더 있음</div>`;
-      }
-      container.innerHTML = html;
+    /* ===================== WBS 전체 일정 트리 ===================== */
+    const CHEVRON_SVG = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>';
+
+    function statusChipsHtml(tasks) {
+      const count = st => tasks.filter(t => taskStatus(t) === st).length;
+      const done = count('done'), delay = count('delay'), prog = count('progress');
+      return `<span class="badge-tag">${tasks.length}건</span>`
+        + (done ? `<span class="badge-success">완료 ${done}</span>` : '')
+        + (delay ? `<span class="badge-danger">지연 ${delay}</span>` : '')
+        + (prog ? `<span class="badge-warning">진행 ${prog}</span>` : '');
     }
 
-    const CHEVRON_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`;
+    // 막대 너비만 데이터로 정해지므로 인라인 width를 허용합니다(가이드 E15).
+    function progressBarHtml(pct, fillClass = '') {
+      return `<span class="stats-bar-cell"><span class="stats-bar" aria-hidden="true"><span class="stats-bar-fill ${fillClass}" style="width:${pct}%"></span></span><span class="tree-pct">${pct}%</span></span>`;
+    }
+
+    function avgPlanProgress(tasks) {
+      return tasks.length ? Math.round(tasks.reduce((s, t) => s + t.progress, 0) / tasks.length) : 0;
+    }
+
+    function treeTaskRowHtml(t) {
+      const st = taskStatus(t);
+      const actualEnd = parseDate(t.actual_end);
+      return `<tr>
+        <td>${badgeHtml(st)}</td>
+        <td class="cell-wrap">${esc(t.task)}</td>
+        <td class="cell-wrap is-narrow">${esc(t.deliverable || '-')}</td>
+        <td>${taskPeriod(t)}</td>
+        <td>${st === 'done' && actualEnd ? fmtDot(actualEnd) : '-'}</td>
+        <td>${t.progress}</td>
+        <td>${pctText(t.actualProgress)}</td>
+        <td>${noteHtml(t)}</td>
+      </tr>`;
+    }
 
     function renderWbsTree() {
       const phaseFilter = document.getElementById('filterPhase').value;
       const statusFilter = document.getElementById('filterStatus').value;
       const kw = document.getElementById('filterKeyword').value.trim().toLowerCase();
+      const tree = document.getElementById('wbsTree');
 
       const rows = WBS_DATA.filter(t => {
         if (phaseFilter && t.phase !== phaseFilter) return false;
-        const st = taskStatus(t);
-        if (statusFilter && st !== statusFilter) return false;
+        if (statusFilter && taskStatus(t) !== statusFilter) return false;
         if (kw && !(t.task || '').toLowerCase().includes(kw)) return false;
         return true;
       });
 
+      document.getElementById('wbsTreeSummary').textContent = `총 ${rows.length}건`;
+
       if (rows.length === 0) {
-        document.getElementById('wbsTree').innerHTML = `<div class="empty-msg">조건에 맞는 TASK가 없습니다.</div>`;
+        const msg = WBS_DATA.length
+          ? '조건에 맞는 TASK가 없습니다. 검색 조건을 바꾸거나 초기화해 주세요.'
+          : '분석할 WBS 데이터가 없습니다. WBS 업데이트 메뉴에서 파일을 올려 주세요.';
+        tree.innerHTML = `<div class="table-scroll-wrapper"><table class="data-table"><tbody>${emptyRow(1, msg)}</tbody></table></div>`;
         return;
       }
 
@@ -409,100 +444,63 @@
         actMap.get(ac).push(t);
       });
 
+      // 검색 조건이 있으면 활동까지 펼쳐 결과를 바로 보여 줍니다. 단계는 항상 펼친 상태로 시작합니다.
       const hasFilter = !!(phaseFilter || statusFilter || kw);
       let html = '';
 
       phaseMap.forEach((actMap, phase) => {
         const phaseTasks = [...actMap.values()].flat();
-        const total = phaseTasks.length;
-        const done  = phaseTasks.filter(t => taskStatus(t) === 'done').length;
-        const delay = phaseTasks.filter(t => taskStatus(t) === 'delay').length;
-        const prog  = phaseTasks.filter(t => taskStatus(t) === 'progress').length;
-        const avgProg = total ? Math.round(phaseTasks.reduce((s, t) => s + t.progress, 0) / total) : 0;
-
-        const isOpen = hasFilter ? 'open' : 'open'; // 기본 단계 펼침
         html += `
-<div class="tree-phase ${isOpen}" id="ph_${phase.replace(/\s/g,'_')}">
-  <div class="tree-phase-hd" onclick="this.closest('.tree-phase').classList.toggle('open')">
+<div class="tree-phase open">
+  <button type="button" class="tree-phase-hd" aria-expanded="true" onclick="toggleTreeNode(this)">
     <span class="tree-chevron">${CHEVRON_SVG}</span>
-    <span class="tree-phase-name">${phase}</span>
-    <div class="tree-phase-meta">
-      <span class="tree-chip tc-total">${total}건</span>
-      ${done  > 0 ? `<span class="tree-chip tc-done">완료 ${done}</span>` : ''}
-      ${delay > 0 ? `<span class="tree-chip tc-delay">지연 ${delay}</span>` : ''}
-      ${prog  > 0 ? `<span class="tree-chip tc-prog">진행 ${prog}</span>` : ''}
-      <div class="tree-prog-bar"><div class="tree-prog-fill" style="width:${avgProg}%"></div></div>
-      <span class="tree-prog-pct">${avgProg}%</span>
-    </div>
-  </div>
+    <span class="tree-phase-name">${esc(phase)}</span>
+    <span class="tree-meta">${statusChipsHtml(phaseTasks)}${progressBarHtml(avgPlanProgress(phaseTasks))}</span>
+  </button>
   <div class="tree-phase-body">`;
 
         actMap.forEach((tasks, activity) => {
-          const aDone  = tasks.filter(t => taskStatus(t) === 'done').length;
-          const aDelay = tasks.filter(t => taskStatus(t) === 'delay').length;
-          const aProg  = tasks.filter(t => taskStatus(t) === 'progress').length;
-          const aAvg   = tasks.length ? Math.round(tasks.reduce((s,t) => s + t.progress, 0) / tasks.length) : 0;
-          const actOpen = hasFilter ? 'open' : '';
-
           html += `
-    <div class="tree-activity ${actOpen}">
-      <div class="tree-act-hd" onclick="this.closest('.tree-activity').classList.toggle('open')">
+    <div class="tree-activity${hasFilter ? ' open' : ''}">
+      <button type="button" class="tree-act-hd" aria-expanded="${hasFilter}" onclick="toggleTreeNode(this)">
         <span class="tree-chevron">${CHEVRON_SVG}</span>
-        <span class="tree-act-name">${activity}</span>
-        <div class="tree-act-meta">
-          <span class="tree-chip tc-total" style="font-size:10.5px">${tasks.length}건</span>
-          ${aDelay > 0 ? `<span class="tree-chip tc-delay" style="font-size:10.5px">지연 ${aDelay}</span>` : ''}
-          ${aProg  > 0 ? `<span class="tree-chip tc-prog" style="font-size:10.5px">진행 ${aProg}</span>` : ''}
-          <div class="tree-prog-bar" style="width:60px"><div class="tree-prog-fill" style="width:${aAvg}%"></div></div>
-          <span class="tree-prog-pct">${aAvg}%</span>
+        <span class="tree-act-name">${esc(activity)}</span>
+        <span class="tree-meta">${statusChipsHtml(tasks)}${progressBarHtml(avgPlanProgress(tasks))}</span>
+      </button>
+      <div class="tree-act-body">
+        <div class="table-scroll-wrapper">
+          <table class="data-table" aria-label="${esc(activity)} TASK 목록">
+            <thead><tr><th>상태</th><th>TASK</th><th>산출물</th><th>기간</th><th>완료일</th><th>계획(%)</th><th>실적(%)</th><th>비고</th></tr></thead>
+            <tbody>${tasks.map(treeTaskRowHtml).join('')}</tbody>
+          </table>
         </div>
       </div>
-      <div class="tree-act-body">`;
-
-          tasks.forEach(t => {
-            const st = taskStatus(t);
-            const dd = delayDays(t);
-            const start = parseDate(t.start), end = parseDate(t.end);
-            const actualEnd = parseDate(t.actual_end);
-            const dateStr = `${fmt(start)} ~ ${fmt(end)}${st === 'done' && actualEnd ? ` · 완료 ${fmt(actualEnd)}` : ''}`;
-            const delayText = dd > 0
-              ? `<span class="t-delaydays" style="font-size:10px;padding:1px 6px;flex-shrink:0">${dd}일 지연</span>`
-              : (st === 'delay' && isDelayByDate(t) ? `<span class="t-delaydays" style="font-size:10px;padding:1px 6px;flex-shrink:0">마감일 도래</span>` : '');
-            const rowCls = st === 'delay' ? 'is-delay' : (st === 'done' ? 'is-done' : '');
-            const barColor = st === 'done' ? 'background:var(--green)' : (st === 'delay' ? 'background:var(--red)' : '');
-            const ap = t.actualProgress;
-            const showDual = ap !== undefined && ap !== t.progress;
-            const titleAttr = t.deliverable ? ` title="${t.task}${t.deliverable ? ' | 산출물: ' + t.deliverable : ''}"` : '';
-            const pctHtml = showDual
-              ? `<span class="tree-task-pct">${t.progress}%·<span style="color:var(--green)">${ap}%</span></span>`
-              : `<span class="tree-task-pct">${t.progress}%</span>`;
-
-            html += `
-        <div class="tree-task-row ${rowCls}">
-          <div style="display:flex;align-items:center">${badgeHtml(st)}</div>
-          <div class="tree-task-name"${titleAttr}><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.task}</span>${delayText}</div>
-          <div class="tree-task-dates">${dateStr}</div>
-          <div class="tree-task-bar">
-            <div class="mini-bar-bg" style="flex:1"><div class="mini-bar-fill" style="width:${t.progress}%;${barColor}"></div></div>
-            ${pctHtml}
-          </div>
-        </div>`;
-          });
-
-          html += `</div></div>`;
+    </div>`;
         });
 
         html += `</div></div>`;
       });
 
-      document.getElementById('wbsTree').innerHTML = html;
+      tree.innerHTML = html;
+    }
+
+    function toggleTreeNode(button) {
+      const open = button.parentElement.classList.toggle('open');
+      button.setAttribute('aria-expanded', String(open));
     }
 
     function setTreeAll(open) {
-      const tree = document.getElementById('wbsTree');
-      tree.querySelectorAll('.tree-phase, .tree-activity').forEach(el => {
-        open ? el.classList.add('open') : el.classList.remove('open');
+      document.querySelectorAll('#wbsTree .tree-phase, #wbsTree .tree-activity').forEach(el => {
+        el.classList.toggle('open', open);
+        el.firstElementChild.setAttribute('aria-expanded', String(open));
       });
+    }
+
+    function resetWbsFilters() {
+      document.getElementById('filterPhase').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterKeyword').value = '';
+      renderAllTable();
     }
 
     function renderAllTable() { renderWbsTree(); }
@@ -534,48 +532,52 @@
       return acc / totalW * 100;
     }
 
+    function weightedPlanProgress(tasks) {
+      const totalW = tasks.reduce((s, t) => s + (t.weight || 0), 0) || 1;
+      return Math.round(tasks.reduce((s, t) => s + (t.weight || 0) * t.progress, 0) / totalW);
+    }
+
     function renderPhaseSummary() {
-      const grouped = groupByPhase(WBS_DATA);
+      const count = (tasks, st) => tasks.filter(t => taskStatus(t) === st).length;
+      const rowCells = tasks => {
+        const delay = count(tasks, 'delay');
+        return `<td>${tasks.length}</td>
+          <td>${count(tasks, 'done')}</td>
+          <td>${count(tasks, 'progress')}</td>
+          <td>${delay ? `<span class="text-danger">${delay}</span>` : 0}</td>
+          <td>${count(tasks, 'upcoming')}</td>
+          <td>${progressBarHtml(weightedPlanProgress(tasks), delay ? 'fill-red' : '')}</td>`;
+      };
+
       let html = '';
-      grouped.forEach((tasks, phase) => {
-        const total = tasks.length;
-        const doneCnt = tasks.filter(t => taskStatus(t) === 'done').length;
-        const delayCnt = tasks.filter(t => taskStatus(t) === 'delay').length;
-        const progCnt = tasks.filter(t => taskStatus(t) === 'progress').length;
-        const totalW = tasks.reduce((s, t) => s + (t.weight || 0), 0) || 1;
-        const avgProgress = Math.round(tasks.reduce((s, t) => s + (t.weight || 0) * t.progress, 0) / totalW);
-        html += `
-    <div class="phase-group">
-      <div class="phase-title">${phase} <span style="color:var(--text-sub);font-weight:500;">(${total}건)</span></div>
-      <div class="task-row ${delayCnt > 0 ? 'is-delay' : ''}">
-        <div class="task-info">
-          <div class="t-meta">완료 ${doneCnt} · 진행중 ${progCnt} · <span style="${delayCnt > 0 ? 'color:var(--red);font-weight:700;' : ''}">지연 ${delayCnt}</span></div>
-        </div>
-        <div class="task-bar-wrap" style="width:240px;">
-          <div class="task-bar-bg ${delayCnt > 0 ? 'delaybar' : ''}"><div class="task-bar-fill" style="width:${avgProgress}%;"></div></div>
-          <div class="task-pct">가중 평균 공정율 ${avgProgress}%</div>
-        </div>
-      </div>
-    </div>`;
+      groupByPhase(WBS_DATA).forEach((tasks, phase) => {
+        html += `<tr><td class="cell-wrap is-narrow">${esc(phase)}</td>${rowCells(tasks)}</tr>`;
       });
-      document.getElementById('phaseSummary').innerHTML = html;
+      document.getElementById('phaseSummary').innerHTML = html
+        || emptyRow(7, '분석할 WBS 데이터가 없습니다. WBS 업데이트 메뉴에서 파일을 올려 주세요.');
+      document.getElementById('phaseSummaryFoot').innerHTML = WBS_DATA.length
+        ? `<tr><td>합계</td>${rowCells(WBS_DATA)}</tr>`
+        : '';
     }
 
     function renderAll() {
       const [wMon, wSun] = getWeekRange(TODAY);
-      const [nMon, nSun] = getWeekRange(addDays(TODAY, 7));
+      const [nMon] = getWeekRange(addDays(TODAY, 7));
       const nFri = addDays(nMon, 4);
 
-      document.getElementById('todayLabel').textContent = fmt(TODAY) + ' (' + ['일', '월', '화', '수', '목', '금', '토'][TODAY.getDay()] + ')';
-      document.getElementById('srcTag').textContent = '데이터 출처: ' + CURRENT_SOURCE_NAME;
+      document.getElementById('todayLabel').textContent = `${fmtDot(TODAY)}(${WEEKDAYS[TODAY.getDay()]})`;
+      const srcTag = document.getElementById('srcTag');
+      srcTag.textContent = '데이터 출처: ' + (CURRENT_SOURCE_NAME || '-');
+      srcTag.title = CURRENT_SOURCE_NAME || '';
 
-      const projStart = parseDate('2026-05-28');
       const projEnd = parseDate('2027-01-29');
       const dday = Math.round((projEnd - TODAY) / 86400000);
-      document.getElementById('ddayLabel').textContent = dday >= 0 ? `사업종료 D-${dday}` : `사업종료 D+${-dday}`;
+      const ddayEl = document.getElementById('ddayLabel');
+      ddayEl.textContent = dday >= 0 ? `사업종료 D-${dday}` : `사업종료 D+${-dday}`;
+      ddayEl.className = 'badge-dday' + (dday < 0 ? ' closed' : '');
 
-      const thisLabel = `${fmtShort(wMon)} ~ ${fmtShort(wSun)}`;
-      const nextLabel = `${fmtShort(nMon)} ~ ${fmtShort(nFri)}`;
+      const thisLabel = fmtRange(wMon, wSun);
+      const nextLabel = fmtRange(nMon, nFri);
       ['thisWeekRangeLabel', 'thisWeekRangeLabel2'].forEach(id => document.getElementById(id).textContent = thisLabel);
       ['nextWeekRangeLabel', 'nextWeekRangeLabel2'].forEach(id => document.getElementById(id).textContent = nextLabel);
 
@@ -583,18 +585,21 @@
       const nextWeekTasks = getTasksInRange(nMon, nFri);          // 차주: 월~금 예정 업무
       const delayTasks = getDelayTasks();
 
-      renderTaskGroup(document.getElementById('thisWeekList'), thisWeekTasks, '이번 주에 진행한 TASK가 없습니다.', false, true);
-      renderTaskGroup(document.getElementById('nextWeekList'), nextWeekTasks, '다음 주에 예정된 TASK가 없습니다.');
-      renderTaskGroup(document.getElementById('delayList'), delayTasks, '현재 지연된 TASK가 없습니다. 계획대로 진행 중입니다.', true);
+      renderTaskTable('thisWeekList', thisWeekTasks, '이번 주에 진행한 TASK가 없습니다.');
+      renderTaskTable('nextWeekList', nextWeekTasks, '다음 주에 예정된 TASK가 없습니다.');
+      renderTaskTable('delayList', delayTasks, '지연된 TASK가 없습니다. 계획대로 진행 중입니다.');
 
-      renderDashboardPreview(document.getElementById('dashThisPreview'), thisWeekTasks, 4, '이번 주에 진행한 TASK가 없습니다.');
-      renderDashboardPreview(document.getElementById('dashNextPreview'), nextWeekTasks, 4, '다음 주에 예정된 TASK가 없습니다.');
-      renderDashboardPreview(document.getElementById('dashDelayPreview'), delayTasks, 4, '현재 지연된 TASK가 없습니다. 계획대로 진행 중입니다.', (a, b) => delayDays(b) - delayDays(a));
+      renderDashboardPreview('dashThisPreview', thisWeekTasks, '이번 주에 진행한 TASK가 없습니다.');
+      renderDashboardPreview('dashNextPreview', nextWeekTasks, '다음 주에 예정된 TASK가 없습니다.');
+      renderDashboardPreview('dashDelayPreview', delayTasks, '지연된 TASK가 없습니다. 계획대로 진행 중입니다.', (a, b) => delayDays(b) - delayDays(a));
 
-      // 사이드바 카운트
+      // 사이드바·목록 건수
       document.getElementById('navCountThis').textContent = thisWeekTasks.length;
       document.getElementById('navCountNext').textContent = nextWeekTasks.length;
       document.getElementById('navCountDelay').textContent = delayTasks.length;
+      document.getElementById('thisWeekCountLabel').textContent = `총 ${thisWeekTasks.length}건`;
+      document.getElementById('nextWeekCountLabel').textContent = `총 ${nextWeekTasks.length}건`;
+      document.getElementById('dashDelayMeta').textContent = `총 ${delayTasks.length}건`;
       const dateCnt = delayTasks.filter(t => isDelayByDate(t)).length;
       const gapCnt  = delayTasks.length - dateCnt;
       const delayBreakdown = dateCnt > 0 && gapCnt > 0
@@ -608,18 +613,25 @@
       document.getElementById('kpiNext').textContent = nextWeekTasks.length;
       document.getElementById('kpiDelay').textContent = delayTasks.length;
       document.getElementById('kpiDone').textContent = WBS_DATA.filter(t => taskStatus(t) === 'done').length;
+      document.getElementById('kpiDelayCard').classList.toggle('is-alert', delayTasks.length > 0);
 
       // 공정율 게이지
       const planRate = calcPlanRate();
       const actualRate = calcActualRate();
       const gap = actualRate - planRate;
+      const gapState = gap < -0.5 ? 'behind' : (gap > 0.5 ? 'ahead' : 'onTrack');
       document.getElementById('phPlanRate').textContent = planRate.toFixed(1) + '%';
       document.getElementById('phActualRate').textContent = actualRate.toFixed(1) + '%';
-      document.getElementById('phGapRate').textContent = (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%p';
-      document.getElementById('phGapRate').style.color = gap < -0.5 ? '#B91C1C' : '#047857';
+      const gapEl = document.getElementById('phGapRate');
+      gapEl.textContent = (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%p';
+      gapEl.className = 'tally-count' + (gapState === 'behind' ? ' text-danger' : gapState === 'ahead' ? ' text-success' : '');
       document.getElementById('phDelayCnt').textContent = delayTasks.length + '건';
-      document.getElementById('phMainLabel').textContent = gap < -0.5 ? '계획 대비 지연 중' : (gap > 0.5 ? '계획 대비 선행 중' : '계획대로 진행 중');
-      document.getElementById('gaugeLabel').innerHTML = actualRate.toFixed(1) + '%<span class="g-sub">실적</span>';
+      const mainLabel = document.getElementById('phMainLabel');
+      mainLabel.textContent = { behind: '계획 대비 지연 중', ahead: '계획 대비 선행 중', onTrack: '계획대로 진행 중' }[gapState];
+      mainLabel.className = { behind: 'badge-danger', ahead: 'badge-success', onTrack: 'badge-info' }[gapState];
+      document.getElementById('gaugeLabel').textContent = actualRate.toFixed(1) + '%';
+      document.getElementById('gaugeSvg').setAttribute('aria-label',
+        `실적 공정율 ${actualRate.toFixed(1)}%, 계획 공정율 ${planRate.toFixed(1)}%`);
       const circumference = 339.292;
       const offset = circumference - (circumference * Math.min(100, actualRate) / 100);
       document.getElementById('gaugeFill').style.strokeDashoffset = offset;
@@ -645,7 +657,37 @@
     document.getElementById('filterKeyword').addEventListener('input', renderAllTable);
 
     function toggleSidebar() {
-      document.body.classList.toggle('sidebar-collapsed');
+      const collapsed = document.body.classList.toggle('sidebar-collapsed');
+      const button = document.getElementById('btnMenuToggle');
+      button.setAttribute('aria-expanded', String(!collapsed));
+      button.setAttribute('aria-label', collapsed ? '사이드바 메뉴 펼치기' : '사이드바 메뉴 접기');
+    }
+
+    /* ===================== 모달 공통 ===================== */
+    // 닫기 3종: 헤더 ×·취소 버튼, 오버레이 클릭, Esc(가장 위 모달부터)
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      if (!document.querySelector('.modal-backdrop.show')) document.body.classList.remove('modal-open');
+    }
+
+    document.querySelectorAll('.modal-backdrop').forEach(modal => {
+      modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
+    });
+
+    function setFieldError(input, message) {
+      const error = document.getElementById(input.getAttribute('aria-describedby'));
+      if (error) error.textContent = message || '';
+      if (message) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
     }
 
     /* ===== 관리자 인증 ===== */
@@ -656,39 +698,37 @@
     function requireAuth(pageId) {
       if (!PROTECTED_PAGES.has(pageId) || _authed) { navigateTo(pageId); return; }
       _pendingPage = pageId;
-      document.getElementById('authOverlay').classList.add('open');
       const inp = document.getElementById('authPwInput');
       inp.type = 'password';
       inp.value = '';
-      const error = document.getElementById('authError');
-      error.textContent = '';
-      error.classList.remove('show');
+      setFieldError(inp, '');
+      const toggle = document.querySelector('.btn-password-toggle');
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.setAttribute('aria-label', '비밀번호 표시');
+      openModal('authOverlay');
       setTimeout(() => inp.focus(), 80);
     }
 
     function submitAuth() {
-      const val = document.getElementById('authPwInput').value;
-      if (val === '4343') {
+      const inp = document.getElementById('authPwInput');
+      if (inp.value === '4343') {
         _authed = true;
         closeAuthModal();
         navigateTo(_pendingPage);
       } else {
-        const error = document.getElementById('authError');
-        error.textContent = '비밀번호가 올바르지 않습니다. 다시 입력해 주세요.';
-        error.classList.add('show');
-        const inp = document.getElementById('authPwInput');
+        setFieldError(inp, '비밀번호가 올바르지 않습니다. 다시 입력해 주세요.');
         inp.value = '';
         inp.focus();
       }
     }
 
     function closeAuthModal() {
-      document.getElementById('authOverlay').classList.remove('open');
+      closeModal('authOverlay');
     }
 
     function toggleAuthPassword() {
       const input = document.getElementById('authPwInput');
-      const button = document.querySelector('.auth-password-toggle');
+      const button = document.querySelector('.btn-password-toggle');
       const show = input.type === 'password';
       input.type = show ? 'text' : 'password';
       button.setAttribute('aria-pressed', String(show));
@@ -696,24 +736,156 @@
       input.focus();
     }
 
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && document.getElementById('authOverlay').classList.contains('open')) closeAuthModal();
-    });
+    /* ===================== 화면 이동 · 화면 매뉴얼 ===================== */
+    const PAGE_META = {
+      'p-dash': { title: '대시보드', group: '업무 알림', manual: [
+        '기준일의 전체 공정율(가중치 반영)과 금주·차주·지연 TASK 수를 한눈에 보여 줍니다.',
+        '요약 카드나 목록의 더보기 +를 누르면 해당 화면으로 이동합니다.',
+        '오른쪽 위 기준일 선택에서 저장된 다른 분석 결과를 불러올 수 있습니다.'] },
+      'p-this': { title: '금주 한 일', group: '업무 알림', manual: [
+        '기준일이 속한 주(월~일)에 완료했거나 진행·지연 중인 TASK를 보여 줍니다.',
+        '완료 TASK는 실제 완료일(없으면 계획 완료일)이 이번 주에 있을 때 포함됩니다.',
+        '차이(%p)는 실적 진척율에서 계획 진척율을 뺀 값입니다.'] },
+      'p-next': { title: '차주 할 일', group: '업무 알림', manual: [
+        '다음 주 월~금 일정과 겹치는 미완료 TASK를 보여 줍니다.',
+        '주간보고 텍스트 복사를 누르면 금주 한 일·차주 할 일·지연 업무를 메일 본문 형식으로 복사합니다.'] },
+      'p-delay': { title: '지연 업무', group: '업무 알림', manual: [
+        '계획 완료일이 기준일과 같거나 지났는데 완료되지 않은 TASK와, 진행 중이지만 실적이 계획보다 낮은 TASK를 보여 줍니다.',
+        '완료 여부는 WBS(실적) 시트의 공정율 100%만 기준으로 판단합니다.'] },
+      'p-all': { title: 'WBS 전체 일정', group: '전체 일정', manual: [
+        '단계 → 활동 → TASK 순서로 전체 일정을 펼쳐 볼 수 있습니다.',
+        '단계·진행상태·TASK명으로 검색하면 조건에 맞는 활동이 펼쳐진 상태로 표시됩니다.',
+        '막대는 TASK별 계획 진척율의 평균입니다.'] },
+      'p-phase': { title: '단계별 현황', group: '전체 일정', manual: [
+        '단계별 TASK 수와 상태별 건수, 가중치를 반영한 평균 계획 진척율을 보여 줍니다.',
+        '지연 TASK가 있는 단계는 막대가 빨간색으로 표시됩니다.'] },
+      'p-upload': { title: 'WBS 업데이트', group: '데이터 관리', manual: [
+        '매주 최신 상세일정계획 WBS 엑셀을 올리면 모든 화면이 다시 계산됩니다.',
+        '분석 결과를 확인한 뒤 최종 저장을 누르면 분석 결과 조회 메뉴에 기록됩니다. 같은 파일명은 덮어씁니다.',
+        'Supabase를 연동하면 다른 PC에서도 같은 분석 결과를 조회할 수 있습니다.'] },
+      'p-history': { title: '분석 결과 조회', group: '데이터 관리', manual: [
+        '최종 저장한 분석 결과를 기준일별로 조회합니다.',
+        '불러오기는 해당 분석 결과를 대시보드에 적용하고, 링크 복사는 바로 열 수 있는 주소를 복사합니다.',
+        '다운로드는 저장 당시의 원본 WBS 엑셀 파일을 내려받습니다.'] },
+      'p-members': { title: '구성원 관리', group: '메일 발송 관리', manual: [
+        '메일의 받는 사람·참조 목록에 쓰이는 프로젝트 구성원을 관리합니다.',
+        '구성원 추가를 눌러 등록하고, 표의 수정·삭제로 정보를 바꿀 수 있습니다.'] },
+      'p-mail': { title: '메일 보내기', group: '메일 발송 관리', manual: [
+        '받는 사람과 참조를 구성원 목록에서 고르고 제목과 내용을 입력한 뒤 발송합니다.',
+        '내용 오른쪽에서 기준일을 고르면 해당 분석 결과로 금주 한 일·차주 할 일·지연 업무 본문이 채워집니다.',
+        'EmailJS 설정이 없으면 기기의 기본 메일 앱으로 발송합니다.'] }
+    };
+    let CURRENT_PAGE = 'p-dash';
+
+    function setNavGroupOpen(group, open) {
+      group.classList.toggle('open', open);
+      group.querySelector('.nav-link').setAttribute('aria-expanded', String(open));
+    }
 
     function navigateTo(pageId) {
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
-      const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
-      if (nav) nav.classList.add('active');
-      const page = document.getElementById(pageId);
-      if (page) page.classList.add('on');
+      const meta = PAGE_META[pageId];
+      if (!meta) return;
+      CURRENT_PAGE = pageId;
+      document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === pageId));
+
+      // 현재 화면의 2Depth만 active, 그 1Depth만 펼칩니다.
+      document.querySelectorAll('.submenu-item').forEach(item => {
+        const active = item.dataset.page === pageId;
+        item.classList.toggle('active', active);
+        const link = item.querySelector('a');
+        if (active) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      });
+      document.querySelectorAll('.sidebar-nav .nav-item').forEach(group => {
+        const hasActive = !!group.querySelector('.submenu-item.active');
+        group.classList.toggle('active', hasActive);
+        setNavGroupOpen(group, hasActive);
+      });
+
+      document.getElementById('pageTitle').textContent = meta.title;
+      document.getElementById('bcGroup').textContent = meta.group;
+      document.getElementById('bcCurrent').textContent = meta.title;
+      document.title = `WBS 일정분석 - ${meta.title} | KEPCO ES`;
+      closePageManual();
+      window.scrollTo(0, 0);
+
       if (pageId === 'p-history') renderHistoryPage();
       if (pageId === 'p-members') renderMembersPage();
       if (pageId === 'p-mail') renderMailPage();
     }
 
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => requireAuth(item.dataset.page));
+    function openPageManual() {
+      const meta = PAGE_META[CURRENT_PAGE];
+      const panel = document.getElementById('pageManualPanel');
+      panel.innerHTML = `<strong>${meta.title} 이용 방법</strong><ul>${meta.manual.map(m => `<li>${m}</li>`).join('')}</ul>`;
+      panel.hidden = false;
+      const button = document.getElementById('btnPageManual');
+      button.setAttribute('aria-expanded', 'true');
+      button.setAttribute('aria-label', `${meta.title} 화면 매뉴얼 닫기`);
+      window.scrollTo(0, 0);
+    }
+
+    function closePageManual() {
+      const panel = document.getElementById('pageManualPanel');
+      if (panel.hidden) return;
+      panel.hidden = true;
+      const button = document.getElementById('btnPageManual');
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-label', `${PAGE_META[CURRENT_PAGE].title} 화면 매뉴얼 열기`);
+    }
+
+    document.getElementById('btnPageManual').addEventListener('click', () => {
+      if (document.getElementById('pageManualPanel').hidden) openPageManual();
+      else closePageManual();
+    });
+
+    document.addEventListener('click', event => {
+      if (event.target.closest('#pageManualPanel, #btnPageManual, .btn-sidebar-action')) return;
+      closePageManual();
+    });
+
+    // 인쇄와 PDF 저장은 브라우저 출력 흐름을 사용하며, 출력 CSS가 main 콘텐츠만 남깁니다.
+    function printCurrentPage(mode) {
+      closePageManual();
+      if (mode === 'pdf') {
+        showToast('인쇄 창의 대상에서 "PDF로 저장"을 선택해 주세요.', 'info');
+        setTimeout(() => window.print(), 300);
+      } else {
+        window.print();
+      }
+    }
+
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      const openModals = document.querySelectorAll('.modal-backdrop.show');
+      if (openModals.length) { closeModal(openModals[openModals.length - 1].id); return; }
+      closePageManual();
+    });
+
+    document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        const group = link.closest('.nav-item');
+        if (document.body.classList.contains('sidebar-collapsed')) {
+          toggleSidebar();
+          setNavGroupOpen(group, true);
+          return;
+        }
+        setNavGroupOpen(group, !group.classList.contains('open'));
+      });
+    });
+
+    document.querySelectorAll('.submenu-item').forEach(item => {
+      item.querySelector('a').addEventListener('click', event => {
+        event.preventDefault();
+        requireAuth(item.dataset.page);
+      });
+    });
+
+    document.querySelectorAll('[data-go]').forEach(el => {
+      el.addEventListener('click', event => {
+        event.preventDefault();
+        requireAuth(el.dataset.go);
+      });
     });
 
     function populateFileSelect(activeId) {
@@ -721,10 +893,10 @@
         const sel = document.getElementById('fileSelect');
         if (!sel) return;
         const dates = [...new Set(all.map(r => r.wbsDate))].sort((a, b) => b.localeCompare(a));
-        sel.innerHTML = '<option value="">날짜 선택</option>' +
+        sel.innerHTML = '<option value="">기준일 선택</option>' +
           dates.map(d => {
             const rec = all.find(r => r.wbsDate === d);
-            return `<option value="${rec.id}"${rec.id === activeId ? ' selected' : ''}>${d}</option>`;
+            return `<option value="${rec.id}"${rec.id === activeId ? ' selected' : ''}>${dotStr(d)}</option>`;
           }).join('');
       });
     }
@@ -786,8 +958,8 @@
           .sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''))
           .forEach(r => byFile.set(r.fileName, r));
         const records = [...byFile.values()].sort((a, b) => b.wbsDate.localeCompare(a.wbsDate));
-        select.innerHTML = '<option value="current">기준일 선택 — 현재 분석 (' + fmt(TODAY) + ')</option>' +
-          records.map(r => `<option value="${r.id}">${r.wbsDate} · ${r.fileName}</option>`).join('');
+        select.innerHTML = '<option value="current">기준일 선택 — 현재 분석 (' + fmtDot(TODAY) + ')</option>' +
+          records.map(r => `<option value="${r.id}">${dotStr(r.wbsDate)} · ${esc(r.fileName)}</option>`).join('');
         select.value = [...select.options].some(o => o.value === selected) ? selected : 'current';
       });
     }
@@ -845,7 +1017,7 @@
       if (value === 'current') {
         const text = buildNextWeekText(WBS_DATA, TODAY, CURRENT_SOURCE_NAME);
         if (!text) { showToast('현재 분석 결과에 복사할 업무가 없습니다.', ''); return; }
-        setMailBodyWithNotice(editor, text, `기준일 ${fmt(TODAY)}의 업무 텍스트를 본문에 넣었습니다.`);
+        setMailBodyWithNotice(editor, text, `기준일 ${fmtDot(TODAY)}의 업무 텍스트를 본문에 넣었습니다.`);
         return;
       }
       fetchFullRecord(Number(value)).then(record => {
@@ -853,7 +1025,7 @@
         const baseline = startOfDay(parseDate(record.wbsDate));
         const text = buildNextWeekText(record.tasks, baseline, record.fileName);
         if (!text) { showToast('선택한 기준일에 복사할 업무가 없습니다.', ''); return; }
-        setMailBodyWithNotice(editor, text, `기준일 ${record.wbsDate}의 업무 텍스트를 본문에 넣었습니다.`);
+        setMailBodyWithNotice(editor, text, `기준일 ${dotStr(record.wbsDate)}의 업무 텍스트를 본문에 넣었습니다.`);
       }).catch(err => showToast('분석 결과 불러오기 오류: ' + err.message, 'err'));
     }
 
@@ -882,23 +1054,18 @@
         }
 
         if (members.length === 0) {
-          const msg = `<span class="mail-chip-empty">등록된 구성원이 없습니다. <a onclick="navigateTo('p-members')">구성원 관리</a>에서 먼저 추가하세요.</span>`;
+          const msg = `<span class="chip-empty">등록된 구성원이 없습니다. <a href="#p-members" onclick="event.preventDefault();navigateTo('p-members')">구성원 관리</a>에서 먼저 추가해 주세요.</span>`;
           toWrap.innerHTML = msg;
           ccWrap.innerHTML = msg;
           return;
         }
 
-        toWrap.innerHTML = members.map(m =>
-          `<span class="mail-chip" id="to-${m.id}" onclick="toggleMailChip(${m.id},'to')">
-            ${m.name} <span class="mail-chip-sub">${m.role}</span>
-          </span>`
-        ).join('');
-
-        ccWrap.innerHTML = members.map(m =>
-          `<span class="mail-chip" id="cc-${m.id}" onclick="toggleMailChip(${m.id},'cc')">
-            ${m.name} <span class="mail-chip-sub">${m.role}</span>
-          </span>`
-        ).join('');
+        const chipHtml = (m, area) =>
+          `<button type="button" class="mail-chip" id="${area}-${m.id}" aria-pressed="false" onclick="toggleMailChip(${m.id},'${area}')">
+            <svg class="mail-chip-check" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>${esc(m.name)}<span class="mail-chip-sub">${esc(m.role || '')}</span>
+          </button>`;
+        toWrap.innerHTML = members.map(m => chipHtml(m, 'to')).join('');
+        ccWrap.innerHTML = members.map(m => chipHtml(m, 'cc')).join('');
       });
     }
 
@@ -906,8 +1073,10 @@
       const set = area === 'to' ? _mailTo : _mailCc;
       const el = document.getElementById(`${area}-${id}`);
       if (!el) return;
-      if (set.has(id)) { set.delete(id); el.classList.remove('selected'); }
-      else             { set.add(id);    el.classList.add('selected'); }
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      el.classList.toggle('selected', set.has(id));
+      el.setAttribute('aria-pressed', String(set.has(id)));
     }
 
     /* --- EmailJS 설정 관리 --- */
@@ -957,7 +1126,7 @@
       localStorage.setItem('ejs_from_name', fromName);
       localStorage.setItem('ejs_reply_to', replyTo);
       renderEjsStatus();
-      document.getElementById('ejsPanel').classList.remove('open');
+      toggleEjsPanel(false);
       showToast('EmailJS 설정이 저장되었습니다.', 'ok');
     }
     function clearEjsConfig() {
@@ -976,7 +1145,7 @@
       const badge = document.getElementById('ejsStatusBadge');
       const note  = document.getElementById('mailSendModeNote');
       if (badge) {
-        badge.className = 'ejs-status-badge ' + (ok ? 'ok' : 'warn');
+        badge.className = ok ? 'badge-success' : 'badge-warning';
         const cfg = getEjsConfig();
         badge.textContent = ok
           ? (cfg.source === 'deployment' ? '배포 설정 완료 — EmailJS 직접 발송' : '브라우저 설정 완료 — EmailJS 직접 발송')
@@ -998,8 +1167,13 @@
       if (fromName) fromName.textContent = cfg.fromName;
       if (fromAddr) fromAddr.textContent = cfg.replyTo || '회신 이메일 미설정';
     }
-    function toggleEjsPanel() {
-      document.getElementById('ejsPanel').classList.toggle('open');
+    function toggleEjsPanel(force) {
+      const body = document.getElementById('ejsPanelBody');
+      const open = typeof force === 'boolean' ? force : body.hidden;
+      body.hidden = !open;
+      const button = document.getElementById('btnEjsToggle');
+      button.setAttribute('aria-expanded', String(open));
+      button.textContent = open ? '설정 닫기' : '설정 열기';
     }
 
     /* --- 메일 발송 --- */
@@ -1032,7 +1206,7 @@
       const btn = document.querySelector('.btn-mail-send');
       const origHTML = btn.innerHTML;
       btn.disabled = true;
-      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 발송 중...';
+      btn.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> 발송 중…';
 
       // init/send가 동기 예외를 내도 발송 버튼이 비활성 상태로 남지 않게 Promise로 감쌉니다.
       Promise.resolve().then(() => {
@@ -1087,8 +1261,10 @@
     function resetMailForm() {
       _mailTo.clear();
       _mailCc.clear();
-      document.querySelectorAll('#mailToChips .mail-chip, #mailCcChips .mail-chip')
-        .forEach(el => el.classList.remove('selected'));
+      document.querySelectorAll('#mailToChips .mail-chip, #mailCcChips .mail-chip').forEach(el => {
+        el.classList.remove('selected');
+        el.setAttribute('aria-pressed', 'false');
+      });
       document.getElementById('mailSubject').value = '';
       const editor = ensureMailEditor();
       if (editor) editor.setText('');
@@ -1176,20 +1352,24 @@
 
     function addUploadHistory(filename, count, ok) {
       const tbody = document.getElementById('uploadHistoryBody');
-      if (tbody.children.length === 1 && tbody.children[0].children.length === 1) {
-        tbody.innerHTML = '';
-      }
+      if (tbody.querySelector('.table-empty')) tbody.innerHTML = '';
       const now = new Date();
-      const tstr = fmt(startOfDay(now)) + ' ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+      const tstr = `${fmtDot(now)} ${('0' + now.getHours()).slice(-2)}:${('0' + now.getMinutes()).slice(-2)}`;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${tstr}</td><td>${filename}</td><td>${count}건</td><td>${ok ? '<span style="color:var(--green);font-weight:700;">적용 완료</span>' : '<span style="color:var(--red);font-weight:700;">실패</span>'}</td>`;
+      tr.innerHTML = `<td>${tstr}</td><td class="cell-wrap">${esc(filename)}</td><td>${count}</td><td>${ok ? '<span class="badge-success">적용 완료</span>' : '<span class="badge-danger">실패</span>'}</td>`;
       tbody.prepend(tr);
     }
 
+    function setUploadStatus(type, text) {
+      const el = document.getElementById('uploadStatus');
+      el.hidden = false;
+      el.className = 'upload-status is-' + type;
+      el.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24">${STATUS_ICONS[type]}</svg><span></span>`;
+      el.querySelector('span').textContent = text;
+    }
+
     function handleFile(file) {
-      const statusEl = document.getElementById('uploadStatus');
-      statusEl.className = 'upload-status show';
-      statusEl.textContent = `"${file.name}" 분석 중...`;
+      setUploadStatus('info', `"${file.name}" 분석 중…`);
 
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -1199,7 +1379,7 @@
           const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const { tasks: parsed, todayStr } = parseWbsWorkbook(workbook);
           if (parsed.length === 0) {
-            throw new Error('인식된 TASK가 없습니다. "WBS(계획)" 시트 구조를 확인해주세요.');
+            throw new Error('인식된 TASK가 없습니다. "WBS(계획)" 시트 구조를 확인해 주세요.');
           }
           WBS_DATA = parsed;
           CURRENT_SOURCE_NAME = file.name;
@@ -1213,20 +1393,18 @@
           }
           initFilters();
           renderAll();
-          const dateNote = fileDateStr ? ` · 기준일 ${fileDateStr} (파일명)` : (todayStr ? ` · 기준일 ${todayStr} (엑셀 Today 셀)` : '');
-          statusEl.className = 'upload-status show ok';
-          statusEl.textContent = `✔ "${file.name}" 적용 완료 — TASK ${parsed.length}건 인식${dateNote}`;
+          const dateNote = fileDateStr ? ` · 기준일 ${dotStr(fileDateStr)}(파일명)` : (todayStr ? ` · 기준일 ${dotStr(todayStr)}(엑셀 Today 셀)` : '');
+          setUploadStatus('success', `"${file.name}" 적용 완료 — TASK ${parsed.length}건 인식${dateNote}`);
+          showToast(`"${file.name}" 분석을 적용했습니다.`, 'ok');
           addUploadHistory(file.name, parsed.length, true);
           showSaveBar(file.name, fmt(TODAY), parsed.length);
         } catch (err) {
-          statusEl.className = 'upload-status show err';
-          statusEl.textContent = `⚠ 파일을 분석하지 못했습니다: ${err.message}`;
+          setUploadStatus('danger', `파일을 분석하지 못했습니다: ${err.message}`);
           addUploadHistory(file.name, 0, false);
         }
       };
       reader.onerror = function () {
-        statusEl.className = 'upload-status show err';
-        statusEl.textContent = '⚠ 파일을 읽는 중 오류가 발생했습니다.';
+        setUploadStatus('danger', '파일을 읽는 중 오류가 발생했습니다.');
         addUploadHistory(file.name, 0, false);
       };
       reader.readAsArrayBuffer(file);
@@ -1459,13 +1637,30 @@
     }
 
     /* ===================== 토스트 ===================== */
-    let _toastTimer = null;
+    // 안내 박스·토스트·업로드 상태가 같은 4종 아이콘을 씁니다(가이드 5.9.1).
+    const STATUS_ICONS = {
+      success: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>',
+      info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+      warning: '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
+      danger: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5h.01"/>'
+    };
+    // 기존 호출부의 type('ok'·'err'·'info'·'')을 가이드의 토스트 종류로 바꿉니다.
+    const TOAST_KIND = { ok: 'success', err: 'danger', warn: 'warning', info: 'info', '': 'info' };
+    const TOAST_MAX = 4;
+
+    // 성공·정보는 3초 뒤 사라지고, 오류·경고는 사용자가 닫을 때까지 유지합니다.
     function showToast(msg, type) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.className = 'show' + (type ? ' ' + type : '');
-      clearTimeout(_toastTimer);
-      _toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+      const kind = TOAST_KIND[type || ''] || 'info';
+      const stack = document.getElementById('toastStack');
+      const toast = document.createElement('div');
+      toast.className = 'toast ' + kind;
+      toast.setAttribute('role', kind === 'danger' || kind === 'warning' ? 'alert' : 'status');
+      toast.innerHTML = `<svg class="toast-icon" aria-hidden="true" viewBox="0 0 24 24">${STATUS_ICONS[kind]}</svg><span class="toast-message"></span><button type="button" class="toast-close" aria-label="알림 닫기">&times;</button>`;
+      toast.querySelector('.toast-message').textContent = msg;
+      toast.querySelector('.toast-close').addEventListener('click', () => toast.remove());
+      stack.appendChild(toast);
+      while (stack.children.length > TOAST_MAX) stack.firstElementChild.remove();
+      if (kind === 'success' || kind === 'info') setTimeout(() => toast.remove(), 3000);
     }
 
     /* ===================== 저장 관련 상태 ===================== */
@@ -1473,8 +1668,8 @@
 
     function showSaveBar(fileName, wbsDate, taskCount) {
       const bar = document.getElementById('saveBar');
-      document.getElementById('saveBarTitle').textContent = `"${fileName}" — ${taskCount}건 인식, 기준일 ${wbsDate}`;
-      document.getElementById('saveBarSub').textContent = '분석 결과를 확인한 후 최종 저장하면 조회 메뉴에서 다시 불러올 수 있습니다.';
+      document.getElementById('saveBarTitle').textContent = `"${fileName}" — TASK ${taskCount}건 인식, 기준일 ${dotStr(wbsDate)}`;
+      document.getElementById('saveBarSub').textContent = '분석 결과를 확인한 후 최종 저장하면 분석 결과 조회 메뉴에서 다시 불러올 수 있습니다.';
       bar.classList.add('visible');
     }
 
@@ -1512,7 +1707,7 @@
           showToast('클라우드에 저장하는 중...', 'info');
           supabaseAddOrUpdate(record, existingId).then(globalId => {
             dbUpdate(globalId, record).then(() => {
-              showToast('✔ 클라우드 및 로컬 저장 완료!', 'ok');
+              showToast('클라우드 및 로컬 저장 완료!', 'ok');
               updateHistoryCount();
               populateFileSelect(globalId);
               renderHistoryPage();
@@ -1541,7 +1736,7 @@
           if (existing) {
             if (!confirm(`같은 파일이 이미 등록되어 있습니다.\n업데이트 됩니다. 계속 진행하시겠습니까?`)) return;
             dbUpdate(existing.id, record).then(id => {
-              showToast('✔ 로컬 저장 완료 (클라우드 미연동)', 'ok');
+              showToast('로컬 저장 완료 (클라우드 미연동)', 'ok');
               updateHistoryCount();
               populateFileSelect(id);
               renderHistoryPage();
@@ -1549,7 +1744,7 @@
             }).catch(err => showToast('저장 오류: ' + err.message, 'err'));
           } else {
             dbAdd(record).then(id => {
-              showToast('✔ 로컬 저장 완료 (클라우드 미연동)', 'ok');
+              showToast('로컬 저장 완료 (클라우드 미연동)', 'ok');
               updateHistoryCount();
               populateFileSelect(id);
               updateUrlParam(id);
@@ -1563,14 +1758,8 @@
     function updateHistoryCount() {
       getCombinedHistoryList().then(list => {
         const badge = document.getElementById('navCountHistory');
-        const label = document.getElementById('historyCountLabel');
-        if (list.length > 0) {
-          badge.textContent = list.length;
-          badge.style.display = 'inline-flex';
-        } else {
-          badge.style.display = 'none';
-        }
-        if (label) label.textContent = `총 ${list.length}건`;
+        badge.textContent = list.length;
+        badge.hidden = list.length === 0;
       });
     }
 
@@ -1586,11 +1775,11 @@
 
       const client = getSupabaseClient();
       if (client) {
-        badge.textContent = '연동 됨';
-        badge.className = 'ejs-status-badge ok';
+        badge.textContent = '연동됨';
+        badge.className = 'badge-success';
       } else {
         badge.textContent = '연동 안 됨';
-        badge.className = 'ejs-status-badge warn';
+        badge.className = 'badge-tag';
       }
     }
 
@@ -1661,61 +1850,46 @@
 
     function resetHistSearch() {
       document.getElementById('histSearchName').value = '';
-      renderHistoryPage();
+      renderHistoryPage(1);
     }
 
     /* ===================== 프로젝트 구성원 관리 ===================== */
+    const MEMBER_FIELDS = [
+      { id: 'mfName',  label: '이름',   key: 'name' },
+      { id: 'mfTitle', label: '직책',   key: 'title' },
+      { id: 'mfRole',  label: '역할',   key: 'role' },
+      { id: 'mfPhone', label: '연락처', key: 'phone' },
+      { id: 'mfEmail', label: '이메일', key: 'email' }
+    ];
+
     function toggleMemberForm(editData) {
-      const panel = document.getElementById('memberFormPanel');
-      if (editData) {
-        document.getElementById('memberFormTitle').textContent = '구성원 수정';
-        document.getElementById('mfEditId').value = editData.id;
-        document.getElementById('mfCreatedAt').value = editData.createdAt || '';
-        document.getElementById('mfName').value = editData.name || '';
-        document.getElementById('mfRole').value = editData.role || '';
-        document.getElementById('mfEmail').value = editData.email || '';
-        document.getElementById('mfPhone').value = editData.phone || '';
-        document.getElementById('mfTitle').value = editData.title || '';
-        panel.classList.add('open');
-        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } else {
-        if (panel.classList.contains('open')) {
-          closeMemberForm();
-        } else {
-          document.getElementById('memberFormTitle').textContent = '구성원 추가';
-          document.getElementById('mfEditId').value = '';
-          document.getElementById('mfCreatedAt').value = '';
-          document.getElementById('mfName').value = '';
-          document.getElementById('mfRole').value = '';
-          document.getElementById('mfEmail').value = '';
-          document.getElementById('mfPhone').value = '';
-          document.getElementById('mfTitle').value = '';
-          panel.classList.add('open');
-          document.getElementById('mfName').focus();
-        }
-      }
+      document.getElementById('memberFormTitle').textContent = editData ? '구성원 수정' : '구성원 추가';
+      document.getElementById('mfEditId').value = editData ? editData.id : '';
+      document.getElementById('mfCreatedAt').value = editData ? (editData.createdAt || '') : '';
+      MEMBER_FIELDS.forEach(f => {
+        const el = document.getElementById(f.id);
+        el.value = editData ? (editData[f.key] || '') : '';
+        setFieldError(el, '');
+      });
+      openModal('memberModal');
+      setTimeout(() => document.getElementById('mfName').focus(), 80);
     }
 
     function closeMemberForm() {
-      document.getElementById('memberFormPanel').classList.remove('open');
+      closeModal('memberModal');
     }
 
     function saveMember() {
-      const fields = [
-        { id: 'mfName',  label: '이름' },
-        { id: 'mfRole',  label: '역할' },
-        { id: 'mfEmail', label: '이메일' },
-        { id: 'mfPhone', label: '연락처' },
-        { id: 'mfTitle', label: '직책' },
-      ];
-      for (const f of fields) {
+      let firstInvalid = null;
+      MEMBER_FIELDS.forEach(f => {
         const el = document.getElementById(f.id);
-        if (!el.value.trim()) {
-          showToast(`${f.label}을(를) 입력하세요.`, 'err');
-          el.focus();
-          return;
-        }
-      }
+        const value = el.value.trim();
+        let message = value ? '' : `${f.label}을(를) 입력해 주세요.`;
+        if (!message && f.key === 'email' && !isValidEmail(value)) message = '이메일 형식을 확인해 주세요.';
+        setFieldError(el, message);
+        if (message && !firstInvalid) firstInvalid = el;
+      });
+      if (firstInvalid) { firstInvalid.focus(); return; }
 
       const name  = document.getElementById('mfName').value.trim();
       const email = document.getElementById('mfEmail').value.trim();
@@ -1766,117 +1940,118 @@
       mdbGetAll().then(all => {
         const count = all.length;
         if (countLabel) countLabel.textContent = count;
-        if (navBadge) { navBadge.textContent = count; navBadge.style.display = count > 0 ? 'inline-flex' : 'none'; }
+        if (navBadge) { navBadge.textContent = count; navBadge.hidden = count === 0; }
 
         if (count === 0) {
-          tbody.innerHTML = `<tr><td colspan="7"><div class="member-empty">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            등록된 구성원이 없습니다.<br>위의 <b>구성원 추가</b> 버튼을 눌러 추가하세요.
-          </div></td></tr>`;
+          tbody.innerHTML = emptyRow(7, '등록된 구성원이 없습니다. 구성원 추가 버튼을 눌러 등록해 주세요.');
           return;
         }
 
-        const dash = '<span style="color:var(--text-muted)">-</span>';
-        tbody.innerHTML = all.map((m, i) => {
-          const role = m.role ? `<span class="member-role-badge dev">${m.role}</span>` : dash;
-          return `<tr>
-            <td style="color:var(--text-muted);font-size:12px">${i + 1}</td>
-            <td><strong>${m.name}</strong></td>
-            <td>${role}</td>
-            <td>${m.title || dash}</td>
-            <td>${m.email}</td>
-            <td>${m.phone || dash}</td>
-            <td><div class="member-actions">
-              <button class="btn-m-edit" onclick="editMember(${m.id})">수정</button>
-              <button class="btn-m-del" onclick="deleteMember(${m.id})">삭제</button>
+        tbody.innerHTML = all.map((m, i) => `<tr>
+            <td>${i + 1}</td>
+            <td>${esc(m.name)}</td>
+            <td>${esc(m.role || '-')}</td>
+            <td>${esc(m.title || '-')}</td>
+            <td>${esc(m.email)}</td>
+            <td>${esc(m.phone || '-')}</td>
+            <td><div class="row-actions">
+              <button type="button" class="btn-task-done" onclick="editMember(${m.id})">수정</button>
+              <button type="button" class="btn-row-del" onclick="deleteMember(${m.id})">삭제</button>
             </div></td>
-          </tr>`;
-        }).join('');
+          </tr>`).join('');
       });
     }
 
     function fmtSavedAt(iso) {
       const d = new Date(iso);
-      return `${d.getFullYear()}-${('0'+(d.getMonth()+1)).slice(-2)}-${('0'+d.getDate()).slice(-2)} ${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)}`;
+      return `${fmtDot(d)} ${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)}`;
+    }
+
+    /* 페이징: << < 1 … 10 > >> (10개 단위) */
+    function renderPagination(navId, current, total, onPage) {
+      const nav = document.getElementById(navId);
+      const blockStart = Math.floor((current - 1) / 10) * 10 + 1;
+      const blockEnd = Math.min(total, blockStart + 9);
+      const navButton = (label, page, aria, disabled) =>
+        `<button type="button" class="btn-page-nav" data-page="${page}" aria-label="${aria}"${disabled ? ' disabled' : ''}>${label}</button>`;
+      let html = navButton('&laquo;', 1, '첫 페이지', current === 1) + navButton('&lsaquo;', current - 1, '이전 페이지', current === 1);
+      for (let p = blockStart; p <= blockEnd; p++) {
+        html += `<button type="button" class="btn-page-num${p === current ? ' active' : ''}" data-page="${p}" aria-label="${p}페이지"${p === current ? ' aria-current="page"' : ''}>${p}</button>`;
+      }
+      html += navButton('&rsaquo;', current + 1, '다음 페이지', current === total) + navButton('&raquo;', total, '마지막 페이지', current === total);
+      nav.innerHTML = html;
+      nav.onclick = event => {
+        const button = event.target.closest('button[data-page]');
+        if (button && !button.disabled) onPage(Number(button.dataset.page));
+      };
     }
 
     // 분석 이력은 IndexedDB/클라우드에서 비동기로 불러온다. 이전 요청이 늦게
     // 끝나면 방금 고른 날짜의 결과를 다시 전체 목록으로 덮어쓰지 않도록 한다.
     let historyRenderVersion = 0;
+    let historyPage = 1;
 
-    function renderHistoryPage() {
+    function renderHistoryPage(page) {
+      if (page) historyPage = page;
       const renderVersion = ++historyRenderVersion;
       const sel = document.getElementById('histSearchName');
       if (!sel) return;
       const selectedDate = sel.value;
-      const container = document.getElementById('historyList');
-      const label = document.getElementById('historyCountLabel');
+      const tbody = document.getElementById('historyList');
+      const summary = document.getElementById('historyCountLabel');
 
       getCombinedHistoryList().then(all => {
         if (renderVersion !== historyRenderVersion) return;
-        if (label) label.textContent = `총 ${all.length}건`;
         const badge = document.getElementById('navCountHistory');
-        if (badge) {
-          if (all.length > 0) { badge.textContent = all.length; badge.style.display = 'inline-flex'; }
-          else badge.style.display = 'none';
-        }
+        if (badge) { badge.textContent = all.length; badge.hidden = all.length === 0; }
 
         // SELECT 옵션 갱신 (wbsDate 오름차순, 중복 제거)
         const dates = [...new Set(all.map(r => r.wbsDate))].sort((a, b) => a.localeCompare(b));
         sel.innerHTML = '<option value="">전체 날짜 보기</option>' +
-          dates.map(d => `<option value="${d}"${d === selectedDate ? ' selected' : ''}>${d}</option>`).join('');
+          dates.map(d => `<option value="${d}"${d === selectedDate ? ' selected' : ''}>${dotStr(d)}</option>`).join('');
 
         const list = all.filter(r => !selectedDate || r.wbsDate === selectedDate)
           .sort((a, b) => a.wbsDate.localeCompare(b.wbsDate));
+        const perPage = Number(document.getElementById('histPerPage').value) || 10;
+        const totalPages = Math.max(1, Math.ceil(list.length / perPage));
+        historyPage = Math.min(Math.max(1, historyPage), totalPages);
+        summary.textContent = `${historyPage} / ${totalPages} (총 ${list.length}개)`;
+        renderPagination('historyPagination', historyPage, totalPages, p => renderHistoryPage(p));
 
         if (list.length === 0) {
-          container.innerHTML = all.length === 0
-            ? `<div class="hist-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3M3.05 11a9 9 0 1 0 .5-3M3 4v4h4"/></svg>저장된 분석 결과가 없습니다.<br>WBS 업데이트 후 <b>최종 저장</b>을 눌러 기록을 남기세요.</div>`
-            : `<div class="hist-empty">검색 조건에 해당하는 결과가 없습니다.</div>`;
+          tbody.innerHTML = emptyRow(11, all.length === 0
+            ? '저장된 분석 결과가 없습니다. WBS 업데이트 후 최종 저장을 눌러 기록을 남겨 주세요.'
+            : '조회된 데이터가 없습니다. 검색 조건을 바꾸거나 초기화해 주세요.');
           return;
         }
 
         const currentWbsDate = fmt(TODAY);
-        let html = '<div class="hist-grid">';
-        list.forEach(r => {
+        const start = (historyPage - 1) * perPage;
+        tbody.innerHTML = list.slice(start, start + perPage).map((r, idx) => {
           const isActive = r.wbsDate === currentWbsDate && r.fileName === CURRENT_SOURCE_NAME;
-          const s = r.summary;
-          const gap = s.actualRate - s.planRate;
-          const gapStr = (gap >= 0 ? '+' : '') + gap.toFixed(1) + '%p';
-          const gapColor = gap < -0.5 ? 'c-red' : (gap > 0.5 ? 'c-green' : '');
-          html += `
-<div class="hist-card${isActive ? ' active-snapshot' : ''}">
-  <div class="hist-date-block">
-    <div class="hist-wbs-date">${r.wbsDate}<small>기준일</small></div>
-    <span class="hist-active-badge">현재 분석 중</span>
-  </div>
-  <div class="hist-file-block">
-    <div class="hist-filename" title="${r.fileName}">📎 ${r.fileName}</div>
-    <div class="hist-saved-at">저장: ${fmtSavedAt(r.savedAt)}</div>
-  </div>
-  <div class="hist-stats">
-    <div class="hs-item"><div class="hs-label">전체 TASK</div><div class="hs-value">${s.total}</div></div>
-    <div class="hs-item"><div class="hs-label">완료</div><div class="hs-value c-green">${s.done}</div></div>
-    <div class="hs-item"><div class="hs-label">지연</div><div class="hs-value c-red">${s.delay}</div></div>
-    <div class="hs-item"><div class="hs-label">계획 공정율</div><div class="hs-value">${s.planRate}%</div></div>
-    <div class="hs-item"><div class="hs-label">실적 공정율</div><div class="hs-value c-accent">${s.actualRate}%</div></div>
-    <div class="hs-item"><div class="hs-label">Gap</div><div class="hs-value ${gapColor}">${gapStr}</div></div>
-  </div>
-  <div class="hist-footer">
-    <div class="hist-actions">
-      <button class="btn-restore" onclick="restoreAnalysis(${r.id})">불러오기</button>
-      <button class="btn-link" onclick="copyAnalysisLink(${r.id})">링크 복사</button>
-      <button class="btn-download" onclick="downloadAnalysisFile(${r.id})">파일 다운로드</button>
-      <button class="btn-del" onclick="deleteAnalysis(${r.id})">삭제</button>
-    </div>
-  </div>
-</div>`;
-        });
-        html += '</div>';
-        container.innerHTML = html;
+          const s = r.summary || {};
+          const gap = (s.actualRate || 0) - (s.planRate || 0);
+          const gapClass = gap < -0.5 ? 'text-danger' : (gap > 0.5 ? 'text-success' : '');
+          const gapStr = (gap >= 0 ? '+' : '') + gap.toFixed(1);
+          return `<tr${isActive ? ' class="is-selected" aria-current="true"' : ''}>
+            <td>${start + idx + 1}</td>
+            <td><span class="row-actions">${dotStr(r.wbsDate)}${isActive ? '<span class="badge-info">현재 분석 중</span>' : ''}</span></td>
+            <td class="cell-wrap is-narrow" title="${esc(r.fileName)}">${esc(r.fileName)}</td>
+            <td>${fmtSavedAt(r.savedAt)}</td>
+            <td>${pctText(s.total)}</td>
+            <td>${pctText(s.done)}</td>
+            <td>${s.delay ? `<span class="text-danger">${s.delay}</span>` : pctText(s.delay)}</td>
+            <td>${pctText(s.planRate)}</td>
+            <td>${pctText(s.actualRate)}</td>
+            <td>${gapClass ? `<span class="${gapClass}">${gapStr}</span>` : gapStr}</td>
+            <td><div class="row-actions">
+              <button type="button" class="btn-task-register" onclick="restoreAnalysis(${r.id})">불러오기</button>
+              <button type="button" class="btn-task-done" onclick="copyAnalysisLink(${r.id})">링크 복사</button>
+              <button type="button" class="btn-file-download" onclick="downloadAnalysisFile(${r.id})" aria-label="${esc(r.fileName)} 다운로드">다운로드</button>
+              <button type="button" class="btn-row-del" onclick="deleteAnalysis(${r.id})">삭제</button>
+            </div></td>
+          </tr>`;
+        }).join('');
       });
     }
 
@@ -2148,8 +2323,9 @@
       initFilters();
       renderAll();
       showSaveBar(r.fileName, r.wbsDate, tasks.length);
-      showToast(`✔ "${r.fileName}" (기준일 ${r.wbsDate}) 불러오기 완료`, 'ok');
+      showToast(`"${r.fileName}" (기준일 ${dotStr(r.wbsDate)}) 불러오기 완료`, 'ok');
       updateUrlParam(id);
+      populateFileSelect(id);
       navigateTo('p-dash');
     }
 
@@ -2235,6 +2411,9 @@
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
     uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+    });
     fileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
     });
@@ -2253,6 +2432,7 @@
     /* ===================== 초기 실행 ===================== */
     initFilters();
     renderAll();
+    navigateTo('p-dash');
     initDB().then(() => {
       updateSupabaseStatus();
       initSupabaseEvents();

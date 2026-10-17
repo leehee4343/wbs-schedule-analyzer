@@ -4,10 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMS·SRM 재구축 | WBS 일정 분석</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet">
+  <title>WBS 일정분석 - 대시보드 | KEPCO ES</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
   <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -17,803 +15,688 @@
   <script src="config/emailjs.config.js"></script>
   <!-- GitHub Pages 배포용 Supabase 설정. 값은 supabase.config.js에서 관리합니다. -->
   <script src="config/supabase.config.js"></script>
-  <!-- 외부 스타일시트 추가 -->
-  <link rel="stylesheet" href="css/style.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 
 <body>
 
-  <!-- ===== 사이드바 ===== -->
-  <div class="sidebar">
-    <div class="brand">
-      <div class="b2">PMS·SRM 재구축 용역<br>WBS 일정 분석</div>
-      <div class="b-dot"><span></span><em>WBS 기반 자동 분석</em></div>
+  <!-- ===== 상단 글로벌 헤더 ===== -->
+  <header class="top-header">
+    <div class="header-sidebar-zone">
+      <img src="img/logo.png" alt="켑코이에스(주) 로고" class="brand-logo-img">
+      <button type="button" class="btn-menu-toggle" id="btnMenuToggle" onclick="toggleSidebar()" aria-controls="sidebar" aria-expanded="true" aria-label="사이드바 메뉴 접기" title="사이드바 메뉴 접기/펼치기">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
+    <div class="header-system">
+      <span class="system-title">WBS 일정분석</span><span class="system-code">(PMS·SRM 재구축)</span>
+    </div>
+    <div class="header-right">
+      <div class="user-profile"><span class="user-name">이희성 부장</span></div>
+    </div>
+  </header>
 
-    <div class="nav-section-label">데이터 관리</div>
-    <div class="nav-item" data-page="p-upload">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 16V4M12 4l-5 5M12 4l5 5" />
-        <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
-      </svg>
-      WBS 업데이트
-    </div>
-    <div class="nav-item" data-page="p-history">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 8v4l3 3M3.05 11a9 9 0 1 0 .5-3M3 4v4h4" />
-      </svg>
-      분석 결과 조회 <span class="nav-count" id="navCountHistory" style="background:var(--navy2);display:none">0</span>
-    </div>
+  <div class="app-container">
 
-    <div class="nav-section-label">업무 알림</div>
-    <div class="nav-item active" data-page="p-dash">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="9" />
-        <rect x="14" y="3" width="7" height="5" />
-        <rect x="14" y="12" width="7" height="9" />
-        <rect x="3" y="16" width="7" height="5" />
-      </svg>
-      대시보드
-    </div>
-    <div class="nav-item" data-page="p-this">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 3" />
-      </svg>
-      금주 한 일 <span class="nav-count" id="navCountThis">0</span>
-    </div>
-    <div class="nav-item" data-page="p-next">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M5 12h14M13 6l6 6-6 6" />
-      </svg>
-      차주 할 일 <span class="nav-count" id="navCountNext">0</span>
-    </div>
-    <div class="nav-item danger" data-page="p-delay">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z" />
-      </svg>
-      지연 업무 <span class="nav-count" id="navCountDelay">0</span>
-    </div>
+    <!-- ===== 좌측 사이드바 ===== -->
+    <aside class="sidebar" id="sidebar" aria-label="주 메뉴">
+      <div class="sidebar-inner">
+        <nav class="sidebar-nav">
+          <div class="nav-item">
+            <button type="button" class="nav-link" aria-expanded="false" title="데이터 관리">
+              <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
+              <span class="nav-text">데이터 관리</span>
+              <span class="nav-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+            </button>
+            <ul class="submenu">
+              <li class="submenu-item" data-page="p-upload"><a href="#p-upload"><span class="submenu-text">WBS 업데이트</span></a></li>
+              <li class="submenu-item" data-page="p-history"><a href="#p-history"><span class="submenu-text">분석 결과 조회</span><span class="submenu-count" id="navCountHistory" hidden>0</span></a></li>
+            </ul>
+          </div>
 
-    <div class="nav-section-label">전체 일정</div>
-    <div class="nav-item" data-page="p-all">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="17" rx="2" />
-        <path d="M3 9h18M8 2v4M16 2v4" />
-      </svg>
-      WBS 전체 일정
-    </div>
-    <div class="nav-item" data-page="p-phase">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 12l9-9 9 9M5 10v10h14V10" />
-      </svg>
-      단계별 현황
-    </div>
+          <div class="nav-item">
+            <button type="button" class="nav-link" aria-expanded="false" title="업무 알림">
+              <span class="nav-icon tone-orange" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+              <span class="nav-text">업무 알림</span>
+              <span class="nav-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+            </button>
+            <ul class="submenu">
+              <li class="submenu-item" data-page="p-dash"><a href="#p-dash"><span class="submenu-text">대시보드</span></a></li>
+              <li class="submenu-item" data-page="p-this"><a href="#p-this"><span class="submenu-text">금주 한 일</span><span class="submenu-count" id="navCountThis">0</span></a></li>
+              <li class="submenu-item" data-page="p-next"><a href="#p-next"><span class="submenu-text">차주 할 일</span><span class="submenu-count" id="navCountNext">0</span></a></li>
+              <li class="submenu-item" data-page="p-delay"><a href="#p-delay"><span class="submenu-text">지연 업무</span><span class="submenu-count is-alert" id="navCountDelay">0</span></a></li>
+            </ul>
+          </div>
 
-    <div class="nav-section-label">메일 발송 관리</div>
-    <div class="nav-item" data-page="p-members">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-      구성원 관리 <span class="nav-count" id="navCountMembers" style="background:var(--navy2);display:none">0</span>
-    </div>
-    <div class="nav-item" data-page="p-mail">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-        <polyline points="22,6 12,13 2,6"/>
-      </svg>
-      메일 보내기
-    </div>
+          <div class="nav-item">
+            <button type="button" class="nav-link" aria-expanded="false" title="전체 일정">
+              <span class="nav-icon tone-info" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>
+              <span class="nav-text">전체 일정</span>
+              <span class="nav-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+            </button>
+            <ul class="submenu">
+              <li class="submenu-item" data-page="p-all"><a href="#p-all"><span class="submenu-text">WBS 전체 일정</span></a></li>
+              <li class="submenu-item" data-page="p-phase"><a href="#p-phase"><span class="submenu-text">단계별 현황</span></a></li>
+            </ul>
+          </div>
 
-    <div class="sidebar-footer">
-      <strong>이희성 부장</strong>
-    </div>
-  </div>
+          <div class="nav-item">
+            <button type="button" class="nav-link" aria-expanded="false" title="메일 발송 관리">
+              <span class="nav-icon tone-green" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>
+              <span class="nav-text">메일 발송 관리</span>
+              <span class="nav-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+            </button>
+            <ul class="submenu">
+              <li class="submenu-item" data-page="p-members"><a href="#p-members"><span class="submenu-text">구성원 관리</span><span class="submenu-count" id="navCountMembers" hidden>0</span></a></li>
+              <li class="submenu-item" data-page="p-mail"><a href="#p-mail"><span class="submenu-text">메일 보내기</span></a></li>
+            </ul>
+          </div>
+        </nav>
 
-  <!-- ===== 메인 ===== -->
-  <div class="main">
-
-    <div class="topbar">
-      <div class="topbar-title-group">
-        <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 열기/닫기">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
-        </button>
-        <div class="topbar-left">
-          <h1>PMS·SRM 재구축 용역 — WBS 일정 분석</h1>
-          <div class="sub">상세일정계획 WBS 기준, 공정율과 지연 업무를 자동 분석합니다. <span class="src-tag" id="srcTag">기본 데이터:
-              20260602_상세일정계획_WBS</span></div>
+        <div class="sidebar-bottom-actions">
+          <button type="button" class="btn-sidebar-action" onclick="openPageManual()" title="현재 화면의 온라인 매뉴얼 열기">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>
+            <span>온라인 매뉴얼</span>
+          </button>
         </div>
       </div>
-      <div class="today-box">
-        <div>
-          <div class="d-label">기준일</div>
-          <div class="d-value" id="todayLabel">-</div>
-        </div>
-        <div class="today-sep"></div>
-        <select id="fileSelect" onchange="onFileSelectChange(this.value)">
-          <option value="">날짜 선택</option>
-        </select>
-        <div class="ddiff" id="ddayLabel">D-0</div>
-      </div>
-    </div>
+    </aside>
 
-    <!-- ================= 대시보드 ================= -->
-    <div class="page on" id="p-dash">
-      <div class="page-header">
-        <div class="page-title">대시보드</div>
+    <!-- ===== 본문 ===== -->
+    <main class="main-content" id="mainContent">
 
-      </div>
-      <div class="progress-hero">
-        <div class="gauge-wrap">
-          <svg viewBox="0 0 130 130">
-            <defs>
-              <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#F59E0B" />
-                <stop offset="100%" stop-color="#FBBF24" />
-              </linearGradient>
-            </defs>
-            <circle class="gauge-bg" cx="65" cy="65" r="54" />
-            <circle class="gauge-fill" id="gaugeFill" cx="65" cy="65" r="54" stroke-dasharray="339"
-              stroke-dashoffset="339" />
-          </svg>
-          <div class="gauge-label" id="gaugeLabel">0%<span class="g-sub">실적</span></div>
-        </div>
-        <div class="ph-info">
-          <div class="ph-title">전체 공정율 · 가중치 기반</div>
-          <div class="ph-main" id="phMainLabel">계획 대비 진행 중</div>
-          <div class="ph-detail">
-            <div class="ph-detail-item">
-              <div class="pd-label">계획 공정율</div>
-              <div class="pd-value" id="phPlanRate">0%</div>
-            </div>
-            <div class="ph-detail-item">
-              <div class="pd-label">실적 공정율</div>
-              <div class="pd-value" id="phActualRate">0%</div>
-            </div>
-            <div class="ph-detail-item">
-              <div class="pd-label">공정 차이</div>
-              <div class="pd-value" id="phGapRate">0%p</div>
-            </div>
-            <div class="ph-detail-item">
-              <div class="pd-label">지연 TASK</div>
-              <div class="pd-value" id="phDelayCnt">0건</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="kpi-row">
-        <div class="kpi">
-          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="17" rx="2" />
-              <path d="M3 9h18" />
-            </svg></div>
-          <div class="k-info">
-            <div class="k-label">전체 TASK</div>
-            <div class="k-value" id="kpiTotal">0</div>
-          </div>
-        </div>
-        <div class="kpi orange">
-          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 3" />
-            </svg></div>
-          <div class="k-info">
-            <div class="k-label">금주 진행 TASK</div>
-            <div class="k-value" id="kpiThis">0</div>
-          </div>
-        </div>
-        <div class="kpi">
-          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg></div>
-          <div class="k-info">
-            <div class="k-label">차주 예정 TASK</div>
-            <div class="k-value" id="kpiNext">0</div>
-          </div>
-        </div>
-        <div class="kpi red">
-          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z" />
-            </svg></div>
-          <div class="k-info">
-            <div class="k-label">지연 TASK</div>
-            <div class="k-value" id="kpiDelay">0</div>
-          </div>
-        </div>
-        <div class="kpi green">
-          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M20 6L9 17l-5-5" />
-            </svg></div>
-          <div class="k-info">
-            <div class="k-label">완료 TASK</div>
-            <div class="k-value" id="kpiDone">0</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card danger-card" id="dashDelayCard">
-        <h3 class="danger-h">
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z" />
-              </svg></div>
-            지연 업무 미리보기
-          </div>
-          <div class="h-right">사이드바 [지연 업무]에서 전체 확인</div>
-        </h3>
-        <div id="dashDelayPreview"></div>
-      </div>
-
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </svg></div>
-            이번 주 핵심 업무 미리보기
-          </div>
-          <div class="h-right" id="thisWeekRangeLabel"></div>
-        </h3>
-        <div id="dashThisPreview"></div>
-      </div>
-
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg></div>
-            다음 주 준비 업무 미리보기
-          </div>
-          <div class="h-right" id="nextWeekRangeLabel"></div>
-        </h3>
-        <div id="dashNextPreview"></div>
-      </div>
-    </div>
-
-    <!-- ================= 금주 한 일 ================= -->
-    <div class="page" id="p-this">
-      <div class="page-header">
-        <div class="page-title">금주 한 일</div>
-
-      </div>
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </svg></div>
-            금주 한 일
-          </div>
-          <div class="h-right" id="thisWeekRangeLabel2"></div>
-        </h3>
-        <div id="thisWeekList"></div>
-      </div>
-    </div>
-
-    <!-- ================= 차주 할 일 ================= -->
-    <div class="page" id="p-next">
-      <div class="page-header">
-        <div class="page-title">차주 할 일</div>
-
-      </div>
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg></div>
-            차주 할 일
-          </div>
-          <div class="h-right" style="display:flex;align-items:center;gap:10px;">
-            <span id="nextWeekRangeLabel2"></span>
-            <button class="btn-copy-text" onclick="copyNextWeekText()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              텍스트 복사
+      <div class="page-title-wrap">
+        <div class="page-title-left">
+          <h1 class="page-title" id="pageTitle">대시보드</h1>
+          <div class="page-title-tools">
+            <button type="button" class="btn-page-manual" id="btnPageManual" aria-expanded="false" aria-controls="pageManualPanel" aria-label="대시보드 화면 매뉴얼 열기" title="화면 매뉴얼">?</button>
+            <button type="button" class="btn-page-output" onclick="printCurrentPage('print')" aria-label="현재 화면 인쇄" title="인쇄">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+            <button type="button" class="btn-page-output" onclick="printCurrentPage('pdf')" aria-label="현재 화면 PDF 저장" title="PDF 저장">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
             </button>
           </div>
-        </h3>
-        <div id="nextWeekList"></div>
-      </div>
-    </div>
-
-    <!-- ================= 지연 업무 ================= -->
-    <div class="page" id="p-delay">
-      <div class="page-header">
-        <div class="page-title">지연 업무</div>
-
-      </div>
-      <div class="card danger-card">
-        <h3 class="danger-h">
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z" />
-              </svg></div>
-            지연 업무 (일정 초과 · 실적 미달)
+          <div class="page-manual-panel" id="pageManualPanel" role="region" aria-label="화면 매뉴얼" hidden></div>
+        </div>
+        <div class="page-header-right">
+          <nav class="breadcrumb" aria-label="현재 위치">
+            <span class="breadcrumb-item">홈</span><span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+            <span class="breadcrumb-item" id="bcGroup">업무 알림</span><span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+            <span class="breadcrumb-item current" id="bcCurrent" aria-current="page">대시보드</span>
+          </nav>
+          <div class="baseline-bar">
+            <span class="baseline-source" id="srcTag" title="">데이터 출처: -</span>
+            <span class="baseline-divider" aria-hidden="true"></span>
+            <span class="baseline-date">기준일 <span id="todayLabel">-</span></span>
+            <select id="fileSelect" class="form-select select-baseline" onchange="onFileSelectChange(this.value)" aria-label="저장된 분석 기준일 선택">
+              <option value="">기준일 선택</option>
+            </select>
+            <span class="badge-dday" id="ddayLabel">사업종료 D-0</span>
           </div>
-          <div class="h-right" id="delayCountLabel"></div>
-        </h3>
-        <div id="delayList"></div>
-      </div>
-    </div>
-
-    <!-- ================= 전체 일정 ================= -->
-    <div class="page" id="p-all">
-      <div class="page-header">
-        <div class="page-title">WBS 전체 일정</div>
-
-      </div>
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="17" rx="2" />
-                <path d="M3 9h18M8 2v4M16 2v4" />
-              </svg></div>
-            WBS 전체 일정
-          </div>
-        </h3>
-        <div class="filter-row">
-          <select id="filterPhase">
-            <option value="">전체 단계</option>
-          </select>
-          <select id="filterStatus">
-            <option value="">전체 상태</option>
-            <option value="done">완료</option>
-            <option value="delay">지연</option>
-            <option value="progress">진행중</option>
-            <option value="upcoming">예정</option>
-          </select>
-          <input type="text" id="filterKeyword" placeholder="TASK명 검색">
-        </div>
-        <div class="tree-ctrl-bar">
-          <button onclick="setTreeAll(true)">전체 펼치기</button>
-          <button onclick="setTreeAll(false)">전체 접기</button>
-        </div>
-        <div id="wbsTree" class="wbs-tree"></div>
-        <div class="legend">
-          <span><i style="background:var(--green)"></i>완료</span>
-          <span><i style="background:var(--red)"></i>지연</span>
-          <span><i style="background:var(--navy2)"></i>진행중</span>
-          <span><i style="background:var(--text-muted)"></i>예정</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= 단계별 현황 ================= -->
-    <div class="page" id="p-phase">
-      <div class="page-header">
-        <div class="page-title">단계별 현황</div>
-
-      </div>
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M3 12l9-9 9 9M5 10v10h14V10" />
-              </svg></div>
-            단계별 진척 현황 (가중치 기준 공정율)
-          </div>
-        </h3>
-        <div id="phaseSummary"></div>
-      </div>
-    </div>
-
-    <!-- ================= 데이터 업데이트 ================= -->
-    <div class="page" id="p-upload">
-      <div class="page-header">
-        <div class="page-title">WBS 업데이트</div>
-
-      </div>
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M12 16V4M12 4l-5 5M12 4l5 5" />
-                <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
-              </svg></div>
-            WBS 업데이트
-          </div>
-          <div class="h-right">매주 최신 상세일정계획 엑셀을 업로드하면 자동 재분석됩니다</div>
-        </h3>
-
-        <div class="upload-zone" id="uploadZone">
-          <input type="file" id="fileInput" accept=".xlsx,.xls">
-          <div class="uz-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M12 16V4M12 4l-5 5M12 4l5 5" />
-              <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
-            </svg></div>
-          <div class="uz-title">최신 WBS 엑셀 파일을 클릭하여 선택하거나 끌어다 놓으세요</div>
-          <div class="uz-sub">상세일정계획_WBS_*.xlsx · "WBS(계획)" 시트의 TASK/일정/진척율 구조를 그대로 인식합니다</div>
-        </div>
-
-        <div class="upload-status" id="uploadStatus"></div>
-
-        <!-- 최종 저장 바 -->
-        <div class="save-bar" id="saveBar">
-          <div class="save-bar-info">
-            <div class="save-bar-title" id="saveBarTitle">분석 결과를 최종 저장합니다</div>
-            <div class="save-bar-sub" id="saveBarSub">파일명과 분석 스냅샷이 브라우저에 영구 보관됩니다</div>
-          </div>
-          <button class="btn-save-final" id="btnSaveFinal">최종 저장</button>
-        </div>
-
-        <div class="upload-history">
-          <table>
-            <thead>
-              <tr>
-                <th>적용 시각</th>
-                <th>파일명</th>
-                <th>인식 TASK 수</th>
-                <th>상태</th>
-              </tr>
-            </thead>
-            <tbody id="uploadHistoryBody">
-              <tr>
-                <td colspan="4" class="empty-msg">아직 업로드 이력이 없습니다. (현재 기본 내장 데이터로 동작 중)</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="tip-box">
-          💡 매주 작성하시는 <b>상세일정계획_WBS</b> 엑셀을 그대로 업로드하면, 시트 내 "단계 / 활동 / TASK / 가중치 / 진척율 / 진행상태 / 계획 시작·완료 / 실제 완료" 컬럼을
-          자동으로 읽어 대시보드·금주/차주 업무·지연 업무·공정율을 다시 계산합니다.<br>
-          업로드한 데이터는 이 브라우저 화면에서만 사용되며 별도로 서버에 저장되지 않습니다(프로토타입 단계).
         </div>
       </div>
 
-      <!-- Supabase 클라우드 연동 카드 -->
-      <div class="card" style="margin-top: 20px;">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg></div>
-            Supabase 클라우드 연동 (무료 데이터 동기화)
-          </div>
-          <span class="ejs-status-badge warn" id="supabaseStatusBadge">연동 안 됨</span>
-        </h3>
-        
-        <div class="ejs-guide">
-          공용 데이터베이스(Supabase)를 연동하면 다른 브라우저나 기기에서도 URL 공유(<code>?id=숫자</code>)를 통해 WBS 분석 데이터를 실시간으로 공유하고 조회할 수 있습니다.
-          <br>자세한 무료 구축 및 가이드는 프로젝트의 <code>implementation_plan.md</code> 또는 <code>README.md</code>를 참고하세요.
-        </div>
-        
-        <div class="ejs-fields">
-          <div class="ejs-field">
-            <label for="sbUrl">Supabase Project API URL</label>
-            <input type="text" id="sbUrl" placeholder="https://xyz.supabase.co">
-          </div>
-          <div class="ejs-field">
-            <label for="sbKey">Supabase Project API Anon Key</label>
-            <input type="text" id="sbKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-          </div>
-          <div class="ejs-field" style="display:flex;align-items:flex-end;">
-            <div class="ejs-field-actions" style="width:100%;">
-              <button class="btn btn-primary" id="btnSbSave" style="width:50%;">저장</button>
-              <button class="btn btn-ghost" id="btnSbClear" style="width:50%;">초기화</button>
+      <!-- ================= 대시보드 ================= -->
+      <section class="page on" id="p-dash" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">전체 공정율</h2>
+              <span class="card-meta">가중치 기준</span>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= 분석 결과 조회 ================= -->
-    <div class="page" id="p-history">
-      <div class="page-header">
-        <div class="page-title">분석 결과 조회</div>
-
-      </div>
-      <div class="section-card">
-        <div class="hist-toolbar">
-          <span class="hist-toolbar-label">기준일</span>
-          <select id="histSearchName" onchange="renderHistoryPage()">
-            <option value="">전체</option>
-          </select>
-          <button class="btn-hist-reset" onclick="resetHistSearch()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            초기화
-          </button>
-          <span class="hist-count-chip" id="historyCountLabel">0건</span>
-        </div>
-
-        <div id="historyList">
-          <div class="hist-empty">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3M3.05 11a9 9 0 1 0 .5-3M3 4v4h4"/></svg>
-            저장된 분석 결과가 없습니다.<br>WBS 업데이트 후 <b>최종 저장</b>을 눌러 기록을 남기세요.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= 프로젝트 구성원 관리 ================= -->
-    <div class="page" id="p-members">
-      <div class="page-header">
-        <div class="page-title">프로젝트 구성원 관리</div>
-
-      </div>
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          <div class="progress-summary-body">
+            <div class="gauge-wrap">
+              <svg viewBox="0 0 130 130" role="img" id="gaugeSvg" aria-label="실적 공정율 0%">
+                <circle class="gauge-bg" cx="65" cy="65" r="54" />
+                <circle class="gauge-fill" id="gaugeFill" cx="65" cy="65" r="54" stroke-dasharray="339.292" stroke-dashoffset="339.292" />
               </svg>
+              <div class="gauge-label" aria-hidden="true">
+                <span class="gauge-value" id="gaugeLabel">0%</span>
+                <span class="gauge-sub">실적 공정율</span>
+              </div>
             </div>
-            프로젝트 구성원
+            <div class="progress-summary-info">
+              <div class="progress-status-row">진행 상태 <span class="badge-info" id="phMainLabel">계획대로 진행 중</span></div>
+              <div class="tally-grid">
+                <div class="tally-item"><span class="tally-label">계획 공정율</span><span class="tally-count" id="phPlanRate">0%</span></div>
+                <div class="tally-item"><span class="tally-label">실적 공정율</span><span class="tally-count" id="phActualRate">0%</span></div>
+                <div class="tally-item"><span class="tally-label">공정 차이</span><span class="tally-count" id="phGapRate">0%p</span></div>
+                <div class="tally-item"><span class="tally-label">지연 TASK</span><span class="tally-count" id="phDelayCnt">0건</span></div>
+              </div>
+            </div>
           </div>
-        </h3>
+        </div>
 
-        <div class="member-toolbar">
-          <div class="member-toolbar-left">총 <strong id="memberCountLabel">0</strong>명 등록됨</div>
-          <button class="btn-add-member" onclick="toggleMemberForm()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-            </svg>
-            구성원 추가
+        <div class="kpi-grid">
+          <button type="button" class="kpi-card" data-go="p-all" title="WBS 전체 일정 화면으로 이동">
+            <span class="summary-icon tone-blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg></span>
+            <span class="kpi-label">전체 TASK</span>
+            <span class="kpi-value-wrap"><span class="kpi-value" id="kpiTotal">0</span><span class="kpi-unit">건</span></span>
+          </button>
+          <button type="button" class="kpi-card" data-go="p-this" title="금주 한 일 화면으로 이동">
+            <span class="summary-icon tone-info" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+            <span class="kpi-label">금주 진행 TASK</span>
+            <span class="kpi-value-wrap"><span class="kpi-value" id="kpiThis">0</span><span class="kpi-unit">건</span></span>
+          </button>
+          <button type="button" class="kpi-card" data-go="p-next" title="차주 할 일 화면으로 이동">
+            <span class="summary-icon tone-orange" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="m11 13 3 2.5-3 2.5"/></svg></span>
+            <span class="kpi-label">차주 예정 TASK</span>
+            <span class="kpi-value-wrap"><span class="kpi-value" id="kpiNext">0</span><span class="kpi-unit">건</span></span>
+          </button>
+          <button type="button" class="kpi-card" id="kpiDelayCard" data-go="p-delay" title="지연 업무 화면으로 이동">
+            <span class="summary-icon tone-red" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg></span>
+            <span class="kpi-label">지연 TASK</span>
+            <span class="kpi-value-wrap"><span class="kpi-value" id="kpiDelay">0</span><span class="kpi-unit">건</span></span>
+          </button>
+          <button type="button" class="kpi-card" data-go="p-phase" title="단계별 현황 화면으로 이동">
+            <span class="summary-icon tone-green" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/></svg></span>
+            <span class="kpi-label">완료 TASK</span>
+            <span class="kpi-value-wrap"><span class="kpi-value" id="kpiDone">0</span><span class="kpi-unit">건</span></span>
           </button>
         </div>
 
-        <!-- 추가/수정 폼 -->
-        <div class="member-form-panel" id="memberFormPanel">
-          <h4 id="memberFormTitle">구성원 추가</h4>
-          <input type="hidden" id="mfEditId">
-          <input type="hidden" id="mfCreatedAt">
-          <div class="member-form-grid">
-            <div class="mf-group">
-              <label>이름 <span style="color:var(--red)">*</span></label>
-              <input type="text" id="mfName" placeholder="홍길동">
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">지연 업무</h2>
+              <span class="card-meta" id="dashDelayMeta">총 0건</span>
             </div>
-            <div class="mf-group">
-              <label>역할 <span style="color:var(--red)">*</span></label>
-              <input type="text" id="mfRole" placeholder="예) PM, PL, 개발, 설계">
-            </div>
-            <div class="mf-group">
-              <label>이메일 <span style="color:var(--red)">*</span></label>
-              <input type="email" id="mfEmail" placeholder="example@company.com">
-            </div>
-            <div class="mf-group">
-              <label>연락처 <span style="color:var(--red)">*</span></label>
-              <input type="text" id="mfPhone" placeholder="010-0000-0000">
-            </div>
-            <div class="mf-group">
-              <label>직책 <span style="color:var(--red)">*</span></label>
-              <input type="text" id="mfTitle" placeholder="예) 부장, 차장, 과장">
-            </div>
+            <a href="#p-delay" class="widget-more" data-go="p-delay">더보기 +</a>
           </div>
-          <div class="member-form-actions">
-            <button class="btn-mf-cancel" onclick="closeMemberForm()">취소</button>
-            <button class="btn-mf-save" onclick="saveMember()">저장</button>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="지연 업무">
+              <thead><tr><th>상태</th><th>단계</th><th>TASK</th><th>기간</th><th>계획(%)</th><th>실적(%)</th><th>지연 내용</th></tr></thead>
+              <tbody id="dashDelayPreview"></tbody>
+            </table>
           </div>
         </div>
 
-        <!-- 목록 테이블 -->
-        <div class="member-table-wrap">
-          <table class="member-table">
-            <thead>
-              <tr>
-                <th style="width:36px">#</th>
-                <th>이름</th>
-                <th>역할</th>
-                <th>직책</th>
-                <th>이메일</th>
-                <th>연락처</th>
-                <th style="width:96px">관리</th>
-              </tr>
-            </thead>
-            <tbody id="memberTableBody">
-              <tr><td colspan="7"><div class="member-empty">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                등록된 구성원이 없습니다.<br>위의 <b>구성원 추가</b> 버튼을 눌러 추가하세요.
-              </div></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= 메일 보내기 ================= -->
-    <div class="page" id="p-mail">
-      <div class="page-header">
-        <div class="page-title">메일 보내기</div>
-
-      </div>
-
-      <div class="card">
-        <h3>
-          <div class="h-left">
-            <div class="h-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">금주 한 일</h2>
+              <span class="card-meta" id="thisWeekRangeLabel"></span>
             </div>
-            메일 작성
+            <a href="#p-this" class="widget-more" data-go="p-this">더보기 +</a>
           </div>
-        </h3>
-
-        <!-- EmailJS 발송 설정 패널 -->
-        <div class="ejs-panel" id="ejsPanel">
-          <div class="ejs-panel-hd" onclick="toggleEjsPanel()">
-            <div class="ejs-panel-hd-left">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-              </svg>
-              EmailJS 발송 설정
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span class="ejs-status-badge warn" id="ejsStatusBadge">미설정 — 메일 앱으로 대체 발송</span>
-              <svg class="ejs-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-          </div>
-          <div class="ejs-panel-body">
-            <div class="ejs-guide">
-              <strong>GitHub Pages 배포 시에는 저장소의 <code>emailjs.config.js</code>에 설정을 입력하면 모든 사용자가 실제 메일을 발송할 수 있습니다.</strong>
-              <ol>
-                <li><a href="https://www.emailjs.com" target="_blank">emailjs.com</a> 에서 무료 가입 (월 200건 무료)</li>
-                <li><b>Email Services</b> 탭 → Add New Service → Naver / Gmail 선택 후 SMTP 연결</li>
-                <li><b>Email Templates</b> 탭 → Create New Template, 아래 변수 사용:<br>
-                  To: <code>{{to_email}}</code> · CC: <code>{{cc_email}}</code> · Subject: <code>{{subject}}</code> · Body: <code>{{message}}</code> · Reply-to: <code>{{reply_to}}</code><br>
-                  <span style="color:var(--text-sub)">서식 포함 본문을 쓰려면 Body에 <code>{{{message_html}}}</code>를 사용하세요.</span>
-                </li>
-                <li><b>Account → API Keys</b>에서 <b>Public Key</b> 복사</li>
-                <li>배포용 설정 파일을 채우기 전에는 Public Key·Service ID·Template ID를 입력하고 <b>이 브라우저에 저장</b>을 누르세요. 발신 표시명과 회신 이메일은 선택 항목입니다.</li>
-              </ol>
-            </div>
-            <div class="ejs-fields">
-              <div class="ejs-field">
-                <label>Public Key</label>
-                <input type="text" id="ejsPublicKey" placeholder="예) user_xxxxxxxxxxxxxx">
-              </div>
-              <div class="ejs-field">
-                <label>Service ID</label>
-                <input type="text" id="ejsServiceId" placeholder="예) service_xxxxxxx">
-              </div>
-              <div class="ejs-field">
-                <label>Template ID</label>
-                <input type="text" id="ejsTemplateId" placeholder="예) template_xxxxxxx">
-              </div>
-              <div class="ejs-field">
-                <label>발신 표시명 <span class="optional">(선택)</span></label>
-                <input type="text" id="ejsFromName" placeholder="예) PMS·SRM 일정관리">
-              </div>
-              <div class="ejs-field">
-                <label>회신 이메일 <span class="optional">(선택)</span></label>
-                <input type="email" id="ejsReplyTo" placeholder="예) pm@example.com">
-              </div>
-            </div>
-            <div class="ejs-field-actions">
-              <button class="btn-ejs-save" onclick="saveEjsConfig()">이 브라우저에 저장</button>
-              <button class="btn-ejs-clear" onclick="clearEjsConfig()">브라우저 설정 초기화</button>
-            </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="금주 한 일">
+              <thead><tr><th>상태</th><th>단계</th><th>TASK</th><th>기간</th><th>계획(%)</th><th>실적(%)</th><th>비고</th></tr></thead>
+              <tbody id="dashThisPreview"></tbody>
+            </table>
           </div>
         </div>
 
-        <div class="mail-form">
-          <!-- 보내는 사람 -->
-          <div class="mail-row">
-            <label>보내는 사람</label>
-            <div class="mail-from-box">
-              <span id="mailFromName">프로젝트 일정관리</span>
-              <span class="mail-from-addr" id="mailFromAddr">EmailJS 연결 계정</span>
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">차주 할 일</h2>
+              <span class="card-meta" id="nextWeekRangeLabel"></span>
+            </div>
+            <a href="#p-next" class="widget-more" data-go="p-next">더보기 +</a>
+          </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="차주 할 일">
+              <thead><tr><th>상태</th><th>단계</th><th>TASK</th><th>기간</th><th>계획(%)</th><th>실적(%)</th><th>비고</th></tr></thead>
+              <tbody id="dashNextPreview"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 금주 한 일 ================= -->
+      <section class="page" id="p-this" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">금주 한 일</h2>
+              <span class="card-meta" id="thisWeekRangeLabel2"></span>
+            </div>
+            <span class="card-meta" id="thisWeekCountLabel">총 0건</span>
+          </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="금주 한 일">
+              <thead><tr><th>No</th><th>상태</th><th>단계</th><th>활동</th><th>TASK</th><th>산출물</th><th>기간</th><th>계획(%)</th><th>실적(%)</th><th>차이(%p)</th><th>비고</th></tr></thead>
+              <tbody id="thisWeekList"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 차주 할 일 ================= -->
+      <section class="page" id="p-next" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">차주 할 일</h2>
+              <span class="card-meta" id="nextWeekRangeLabel2"></span>
+            </div>
+            <div class="card-tools">
+              <span class="card-meta" id="nextWeekCountLabel">총 0건</span>
+              <button type="button" class="btn-secondary" onclick="copyNextWeekText()">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                주간보고 텍스트 복사
+              </button>
             </div>
           </div>
-          <!-- 받는 사람 -->
-          <div class="mail-row">
-            <label>받는 사람 <span style="color:var(--red)">*</span></label>
-            <div class="mail-chip-wrap" id="mailToChips"></div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="차주 할 일">
+              <thead><tr><th>No</th><th>상태</th><th>단계</th><th>활동</th><th>TASK</th><th>산출물</th><th>기간</th><th>계획(%)</th><th>실적(%)</th><th>차이(%p)</th><th>비고</th></tr></thead>
+              <tbody id="nextWeekList"></tbody>
+            </table>
           </div>
-          <!-- 참조 -->
-          <div class="mail-row">
-            <label>참조</label>
-            <div class="mail-chip-wrap" id="mailCcChips"></div>
+        </div>
+      </section>
+
+      <!-- ================= 지연 업무 ================= -->
+      <section class="page" id="p-delay" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">지연 업무</h2>
+              <span class="card-meta" id="delayCountLabel"></span>
+            </div>
           </div>
-          <!-- 제목 -->
-          <div class="mail-row">
-            <label>제목 <span style="color:var(--red)">*</span></label>
-            <input class="mail-input" type="text" id="mailSubject" placeholder="메일 제목을 입력하세요">
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="지연 업무">
+              <thead><tr><th>No</th><th>상태</th><th>단계</th><th>활동</th><th>TASK</th><th>산출물</th><th>기간</th><th>계획(%)</th><th>실적(%)</th><th>차이(%p)</th><th>지연 내용</th></tr></thead>
+              <tbody id="delayList"></tbody>
+            </table>
           </div>
-          <!-- 내용 -->
-          <div class="mail-row mail-body-row">
-            <div class="mail-body-heading">
-              <label>내용 <span style="color:var(--red)">*</span></label>
-              <select class="mail-baseline-select" id="mailBaselineSelect" onchange="fillMailBodyFromBaseline(this.value)">
-                <option value="current">기준일 선택 — 현재 분석</option>
+        </div>
+      </section>
+
+      <!-- ================= WBS 전체 일정 ================= -->
+      <section class="page" id="p-all" aria-labelledby="pageTitle">
+        <div class="app-card search-filter-card">
+          <div class="search-filter-grid">
+            <div class="filter-row">
+              <label class="filter-label w-80" for="filterPhase">단계</label>
+              <select id="filterPhase" class="form-select"><option value="">전체 단계</option></select>
+            </div>
+            <div class="filter-row">
+              <label class="filter-label w-80" for="filterStatus">진행상태</label>
+              <select id="filterStatus" class="form-select">
+                <option value="">전체 상태</option>
+                <option value="done">완료</option>
+                <option value="delay">지연</option>
+                <option value="progress">진행중</option>
+                <option value="upcoming">예정</option>
               </select>
             </div>
-            <div class="mail-editor" id="mailBody"></div>
+            <div class="filter-row">
+              <label class="filter-label w-80" for="filterKeyword">TASK명</label>
+              <input type="text" id="filterKeyword" class="form-control" placeholder="TASK명을 입력해 주세요">
+            </div>
           </div>
-        </div>
-
-        <div class="mail-actions">
-          <div id="mailSendModeNote" class="mail-actions-note">
-            ※ EmailJS 직접 발송을 위해 발송 설정을 완료하세요.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-mail-reset" onclick="resetMailForm()">초기화</button>
-            <button class="btn-mail-send" onclick="sendMail()">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-              발송
+          <div class="filter-action-row">
+            <button type="button" class="btn-search-main" onclick="renderAllTable()">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              검색
             </button>
+            <button type="button" class="btn-secondary" onclick="resetWbsFilters()">초기화</button>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="footer">PMS·SRM 재구축 용역 상세일정계획 WBS 기반 프로토타입 · 작성자: 이희성</div>
+        <div class="app-card">
+          <div class="table-header-action-row">
+            <div class="grid-page-summary" id="wbsTreeSummary">총 0건</div>
+            <div class="table-actions">
+              <button type="button" class="btn-secondary" onclick="setTreeAll(true)">전체 펼치기</button>
+              <button type="button" class="btn-secondary" onclick="setTreeAll(false)">전체 접기</button>
+            </div>
+          </div>
+          <div id="wbsTree" class="wbs-tree"></div>
+        </div>
+      </section>
+
+      <!-- ================= 단계별 현황 ================= -->
+      <section class="page" id="p-phase" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">단계별 진척 현황</h2>
+              <span class="card-meta">가중치 기준</span>
+            </div>
+          </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="단계별 진척 현황">
+              <thead><tr><th>단계</th><th>전체</th><th>완료</th><th>진행중</th><th>지연</th><th>예정</th><th>가중 평균 공정율(%)</th></tr></thead>
+              <tbody id="phaseSummary"></tbody>
+              <tfoot id="phaseSummaryFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= WBS 업데이트 ================= -->
+      <section class="page" id="p-upload" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <h2 class="card-title">WBS 파일 업로드</h2>
+          </div>
+
+          <div class="notice-box info" role="note">
+            <span class="notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 4V6L7 10H3Z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></span>
+            <div class="notice-body">
+              <p class="notice-lead">매주 작성하는 상세일정계획 WBS 엑셀을 그대로 올려 주세요.</p>
+              <p>"WBS(계획)"·"WBS(실적)" 시트의 단계 · 활동 · TASK · 가중치 · 진척율 · 계획 시작/완료 · 실제 완료 값을 읽어 대시보드, 금주·차주 업무, 지연 업무, 공정율을 다시 계산합니다.</p>
+              <p class="notice-note">파일명 앞 8자리(YYYYMMDD)가 기준일이 되며, 최종 저장을 누르면 분석 결과가 클라우드와 이 브라우저에 보관됩니다.</p>
+            </div>
+          </div>
+
+          <div class="file-dropzone" id="uploadZone" role="button" tabindex="0" aria-label="WBS 엑셀 파일 선택">
+            <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+            <span class="dropzone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4M12 4l-5 5M12 4l5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span>
+            <span class="dropzone-title">WBS 엑셀 파일을 선택하거나 이 영역에 끌어다 놓으세요</span>
+            <span class="dropzone-sub">상세일정계획_WBS_*.xlsx (.xlsx, .xls)</span>
+          </div>
+
+          <div class="upload-status" id="uploadStatus" role="status" aria-live="polite" hidden></div>
+
+          <div class="inline-action-bar" id="saveBar">
+            <div class="inline-action-text">
+              <span class="inline-action-title" id="saveBarTitle">분석 결과를 최종 저장합니다.</span>
+              <span class="inline-action-sub" id="saveBarSub">분석 결과를 확인한 후 최종 저장하면 분석 결과 조회 메뉴에서 다시 불러올 수 있습니다.</span>
+            </div>
+            <button type="button" class="btn-critical-primary" id="btnSaveFinal">최종 저장</button>
+          </div>
+
+          <h3 class="subsection-title">업로드 이력</h3>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="업로드 이력">
+              <thead><tr><th>적용 일시</th><th>파일명</th><th>인식 TASK(건)</th><th>상태</th></tr></thead>
+              <tbody id="uploadHistoryBody">
+                <tr><td colspan="4" class="table-empty">업로드 이력이 없습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="app-card-header">
+            <h2 class="card-title">Supabase 클라우드 연동</h2>
+            <span class="badge-tag" id="supabaseStatusBadge">연동 안 됨</span>
+          </div>
+          <p class="form-hint">공용 데이터베이스(Supabase)를 연동하면 다른 브라우저나 기기에서도 링크(<code>?id=번호</code>)로 같은 분석 결과를 조회할 수 있습니다. 테이블 구성은 저장소의 <code>supabase_setup.sql</code>과 <code>README.md</code>를 참고해 주세요.</p>
+          <div class="form-section">
+            <div class="form-group col-full">
+              <label class="form-label" for="sbUrl">Project API URL<span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="sbUrl" class="form-control" placeholder="https://xyz.supabase.co">
+            </div>
+            <div class="form-group col-full">
+              <label class="form-label" for="sbKey">Project API Anon Key<span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="sbKey" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+            </div>
+          </div>
+          <div class="form-actions-bar">
+            <button type="button" class="btn-secondary" id="btnSbClear">초기화</button>
+            <div class="form-actions-right">
+              <button type="button" class="btn-primary" id="btnSbSave">연동 저장</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 분석 결과 조회 ================= -->
+      <section class="page" id="p-history" aria-labelledby="pageTitle">
+        <div class="app-card search-filter-card">
+          <div class="search-filter-grid cols-1">
+            <div class="filter-row">
+              <label class="filter-label w-80" for="histSearchName">기준일</label>
+              <select id="histSearchName" class="form-select" onchange="renderHistoryPage(1)">
+                <option value="">전체 날짜 보기</option>
+              </select>
+            </div>
+          </div>
+          <div class="filter-action-row">
+            <button type="button" class="btn-search-main" onclick="renderHistoryPage(1)">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              검색
+            </button>
+            <button type="button" class="btn-secondary" onclick="resetHistSearch()">초기화</button>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="table-header-action-row">
+            <div class="grid-page-summary" id="historyCountLabel">1 / 1 (총 0개)</div>
+            <div class="table-actions">
+              <select id="histPerPage" class="form-select select-per-page" aria-label="페이지당 표시 건수" onchange="renderHistoryPage(1)">
+                <option value="10">10건</option>
+                <option value="20">20건</option>
+                <option value="50">50건</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="분석 결과 목록">
+              <thead><tr><th>No</th><th>기준일</th><th>파일명</th><th>저장 일시</th><th>전체 TASK(건)</th><th>완료(건)</th><th>지연(건)</th><th>계획 공정율(%)</th><th>실적 공정율(%)</th><th>차이(%p)</th><th>관리</th></tr></thead>
+              <tbody id="historyList">
+                <tr><td colspan="11" class="table-empty">조회된 데이터가 없습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-pagination-row"><nav class="pagination-controls" id="historyPagination" aria-label="표 페이지 이동"></nav></div>
+        </div>
+      </section>
+
+      <!-- ================= 구성원 관리 ================= -->
+      <section class="page" id="p-members" aria-labelledby="pageTitle">
+        <div class="app-card">
+          <div class="app-card-header">
+            <h2 class="card-title">프로젝트 구성원</h2>
+          </div>
+          <div class="table-header-action-row">
+            <div class="grid-page-summary">총 <span id="memberCountLabel">0</span>명</div>
+          </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" aria-label="프로젝트 구성원 목록">
+              <thead><tr><th>No</th><th>이름</th><th>역할</th><th>직책</th><th>이메일</th><th>연락처</th><th>관리</th></tr></thead>
+              <tbody id="memberTableBody">
+                <tr><td colspan="7" class="table-empty">등록된 구성원이 없습니다. 구성원 추가 버튼을 눌러 등록해 주세요.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="form-actions-bar">
+            <div class="form-actions-right">
+              <button type="button" class="btn-critical-primary" onclick="toggleMemberForm()">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+                구성원 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 메일 보내기 ================= -->
+      <section class="page" id="p-mail" aria-labelledby="pageTitle">
+        <div class="app-card" id="ejsPanel">
+          <div class="app-card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">EmailJS 발송 설정</h2>
+            </div>
+            <div class="card-tools">
+              <span class="badge-warning" id="ejsStatusBadge">미설정 — 메일 앱으로 대체 발송</span>
+              <button type="button" class="btn-secondary" id="btnEjsToggle" onclick="toggleEjsPanel()" aria-expanded="false" aria-controls="ejsPanelBody">설정 열기</button>
+            </div>
+          </div>
+          <div class="settings-body" id="ejsPanelBody" hidden>
+            <p class="form-hint">GitHub Pages 배포 시에는 저장소의 <code>config/emailjs.config.js</code>에 값을 입력하면 모든 사용자가 같은 설정으로 메일을 발송할 수 있습니다.</p>
+            <ol class="step-list">
+              <li><a href="https://www.emailjs.com" target="_blank" rel="noopener">emailjs.com</a>에 가입합니다(월 200건 무료).</li>
+              <li>Email Services 탭에서 Add New Service를 눌러 Naver 또는 Gmail을 SMTP로 연결합니다.</li>
+              <li>Email Templates 탭에서 템플릿을 만들고 To <code>{{to_email}}</code> · CC <code>{{cc_email}}</code> · Subject <code>{{subject}}</code> · Body <code>{{message}}</code> · Reply-to <code>{{reply_to}}</code> 변수를 연결합니다. 서식 포함 본문은 Body에 <code>{{{message_html}}}</code>를 사용합니다.</li>
+              <li>Account → API Keys에서 Public Key를 복사합니다.</li>
+              <li>배포용 설정 파일을 채우기 전에는 아래 값을 입력하고 이 브라우저에 저장합니다. 발신 표시명과 회신 이메일은 선택 항목입니다.</li>
+            </ol>
+            <div class="form-section">
+              <div class="form-group">
+                <label class="form-label" for="ejsPublicKey">Public Key<span class="required" aria-hidden="true">*</span></label>
+                <input type="text" id="ejsPublicKey" class="form-control" placeholder="예) user_xxxxxxxxxxxxxx">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ejsServiceId">Service ID<span class="required" aria-hidden="true">*</span></label>
+                <input type="text" id="ejsServiceId" class="form-control" placeholder="예) service_xxxxxxx">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ejsTemplateId">Template ID<span class="required" aria-hidden="true">*</span></label>
+                <input type="text" id="ejsTemplateId" class="form-control" placeholder="예) template_xxxxxxx">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ejsFromName">발신 표시명</label>
+                <input type="text" id="ejsFromName" class="form-control" placeholder="예) PMS·SRM 일정관리">
+              </div>
+              <div class="form-group col-full">
+                <label class="form-label" for="ejsReplyTo">회신 이메일</label>
+                <input type="email" id="ejsReplyTo" class="form-control" placeholder="예) pm@example.com">
+              </div>
+            </div>
+            <div class="form-actions-bar">
+              <button type="button" class="btn-secondary" onclick="clearEjsConfig()">브라우저 설정 초기화</button>
+              <div class="form-actions-right">
+                <button type="button" class="btn-primary" onclick="saveEjsConfig()">이 브라우저에 저장</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="app-card-header">
+            <h2 class="card-title">메일 작성</h2>
+          </div>
+          <div class="form-section">
+            <div class="form-group col-full">
+              <span class="form-label" id="mailFromLabel">보내는 사람</span>
+              <div class="readonly-field" aria-labelledby="mailFromLabel">
+                <span id="mailFromName">프로젝트 일정관리</span>
+                <span class="readonly-sub" id="mailFromAddr">EmailJS 연결 계정</span>
+              </div>
+            </div>
+            <div class="form-group col-full">
+              <span class="form-label" id="mailToLabel">받는 사람<span class="required" aria-hidden="true">*</span></span>
+              <div class="chip-group" id="mailToChips" role="group" aria-labelledby="mailToLabel"></div>
+            </div>
+            <div class="form-group col-full">
+              <span class="form-label" id="mailCcLabel">참조</span>
+              <div class="chip-group" id="mailCcChips" role="group" aria-labelledby="mailCcLabel"></div>
+            </div>
+            <div class="form-group col-full">
+              <label class="form-label" for="mailSubject">제목<span class="required" aria-hidden="true">*</span></label>
+              <input type="text" id="mailSubject" class="form-control" placeholder="메일 제목을 입력해 주세요">
+            </div>
+            <div class="form-group col-full">
+              <div class="form-label-row">
+                <span class="form-label" id="mailBodyLabel">내용<span class="required" aria-hidden="true">*</span></span>
+                <select id="mailBaselineSelect" class="form-select select-mail-baseline" onchange="fillMailBodyFromBaseline(this.value)" aria-label="본문에 넣을 분석 기준일 선택">
+                  <option value="current">기준일 선택 — 현재 분석</option>
+                </select>
+              </div>
+              <div class="mail-editor"><div id="mailBody" aria-labelledby="mailBodyLabel"></div></div>
+              <p class="form-hint" id="mailSendModeNote">※ EmailJS 직접 발송을 위해 발송 설정을 완료해 주세요.</p>
+            </div>
+          </div>
+          <div class="form-actions-bar">
+            <button type="button" class="btn-secondary" onclick="resetMailForm()">초기화</button>
+            <div class="form-actions-right">
+              <button type="button" class="btn-critical-primary btn-mail-send" onclick="sendMail()">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m22 2-11 11"/><path d="m22 2-7 20-4-9-9-4z"/></svg>
+                발송
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <!-- 비밀번호 모달 -->
-  <div id="authOverlay" class="auth-overlay" onclick="if(event.target===this)closeAuthModal()" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-    <div class="auth-card">
-      <div class="auth-card-head">
-        <button class="auth-close" type="button" onclick="closeAuthModal()" aria-label="닫기">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-        <div class="auth-eyebrow"><span style="width:6px;height:6px;border-radius:50%;background:#6EE7B7"></span>ADMIN ONLY</div>
-        <div class="auth-card-title" id="authTitle">
-          <span class="auth-lock-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          관리자 접근 확인
-        </div>
-        <p class="auth-card-desc">구성원 관리와 메일 보내기 메뉴는 관리자 확인 후 이용할 수 있습니다.</p>
+  <footer class="app-footer">
+    <div class="footer-copyright">&copy; 2026 KEPCO Energy Solution Co., Ltd. All Rights Reserved.</div>
+  </footer>
+
+  <!-- 관리자 확인 모달 -->
+  <div class="modal-backdrop" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="authTitle">관리자 접근 확인</h2>
+        <button type="button" class="modal-close" onclick="closeAuthModal()" aria-label="닫기">&times;</button>
       </div>
-      <div class="auth-card-body">
-        <label class="auth-field-label" for="authPwInput">관리자 비밀번호</label>
-        <div class="auth-password-wrap">
-          <input type="password" id="authPwInput" placeholder="비밀번호를 입력하세요" maxlength="20" autocomplete="current-password"
-                 onkeydown="if(event.key==='Enter')submitAuth()" aria-describedby="authError">
-          <button class="auth-password-toggle" type="button" onclick="toggleAuthPassword()" aria-label="비밀번호 표시 전환" aria-pressed="false">
-            <svg id="authEyeIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
-          </button>
+      <div class="modal-body">
+        <div class="notice-box info" role="note">
+          <span class="notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></span>
+          <div class="notice-body"><p>구성원 관리와 메일 보내기는 관리자 확인 후 이용할 수 있습니다.</p></div>
         </div>
-        <div id="authError" class="auth-card-error" role="alert" aria-live="polite"></div>
-        <div class="auth-card-btns">
-          <button class="btn btn-ghost" type="button" onclick="closeAuthModal()">취소</button>
-          <button class="btn btn-primary" type="button" onclick="submitAuth()">접근하기</button>
+        <div class="form-group">
+          <label class="form-label" for="authPwInput">관리자 비밀번호<span class="required" aria-hidden="true">*</span></label>
+          <div class="password-field">
+            <input type="password" id="authPwInput" class="form-control" placeholder="비밀번호를 입력해 주세요" maxlength="20" autocomplete="current-password"
+                   onkeydown="if(event.key==='Enter')submitAuth()" aria-describedby="authError">
+            <button type="button" class="btn-password-toggle" onclick="toggleAuthPassword()" aria-label="비밀번호 표시" aria-pressed="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            </button>
+          </div>
+          <p id="authError" class="field-error" role="alert"></p>
         </div>
-        <div class="auth-card-foot">ESC 키를 누르거나 바깥 영역을 클릭하면 닫을 수 있습니다.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" onclick="submitAuth()">확인</button>
+        <button type="button" class="btn-secondary" onclick="closeAuthModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 구성원 추가/수정 모달 -->
+  <div class="modal-backdrop" id="memberModal" role="dialog" aria-modal="true" aria-labelledby="memberFormTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h2 class="modal-title" id="memberFormTitle">구성원 추가</h2>
+        <button type="button" class="modal-close" onclick="closeMemberForm()" aria-label="닫기">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="mfEditId">
+        <input type="hidden" id="mfCreatedAt">
+        <div class="form-section">
+          <div class="form-group">
+            <label class="form-label" for="mfName">이름<span class="required" aria-hidden="true">*</span></label>
+            <input type="text" id="mfName" class="form-control" placeholder="홍길동" aria-describedby="mfNameError">
+            <p class="field-error" id="mfNameError"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mfTitle">직책<span class="required" aria-hidden="true">*</span></label>
+            <input type="text" id="mfTitle" class="form-control" placeholder="예) 부장, 차장, 과장" aria-describedby="mfTitleError">
+            <p class="field-error" id="mfTitleError"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mfRole">역할<span class="required" aria-hidden="true">*</span></label>
+            <input type="text" id="mfRole" class="form-control" placeholder="예) PM, PL, 개발, 설계" aria-describedby="mfRoleError">
+            <p class="field-error" id="mfRoleError"></p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mfPhone">연락처<span class="required" aria-hidden="true">*</span></label>
+            <input type="text" id="mfPhone" class="form-control" placeholder="010-0000-0000" aria-describedby="mfPhoneError">
+            <p class="field-error" id="mfPhoneError"></p>
+          </div>
+          <div class="form-group col-full">
+            <label class="form-label" for="mfEmail">이메일<span class="required" aria-hidden="true">*</span></label>
+            <input type="email" id="mfEmail" class="form-control" placeholder="example@company.com" aria-describedby="mfEmailError">
+            <p class="field-error" id="mfEmailError"></p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-critical-primary" onclick="saveMember()">저장</button>
+        <button type="button" class="btn-secondary" onclick="closeMemberForm()">취소</button>
       </div>
     </div>
   </div>
 
   <!-- 토스트 -->
-  <div id="toast"></div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-  <!-- 외부 로직 연동 -->
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 
 </html>
